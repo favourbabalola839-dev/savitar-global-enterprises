@@ -1,0 +1,510 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07152e">
+<title>SAVITAR GLOBAL ENTERPRISES | Premium Tech Store</title>
+<style>
+:root{
+  --navy:#07152e;--blue:#1355d8;--gold:#ffbd45;
+  --bg:#f4f6fb;--muted:#6b7890;--white:#fff;
+  --border:#e5eaf2;--green:#16824a
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:110px}
+body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:#14213a}
+button,input,textarea{font:inherit}
+button{cursor:pointer;border:0}
+img{max-width:100%}
+a{color:inherit;text-decoration:none}
+.top{background:var(--navy);color:#fff;padding:10px 5%;display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.top strong{color:var(--gold)}
+header{background:#fff;padding:15px 5%;display:flex;align-items:center;justify-content:space-between;gap:20px;position:sticky;top:0;z-index:8;box-shadow:0 4px 20px #07152e0b}
+.brand{font-weight:900;font-size:22px;white-space:nowrap;letter-spacing:-.6px;color:var(--navy)}
+.brand span{color:var(--blue)}
+.search{display:flex;flex:1;max-width:570px;gap:7px}
+.search input{width:100%;min-width:0;padding:13px 15px;border:1px solid var(--border);border-radius:12px;outline:none;background:#f9faff}
+.search input:focus{border-color:var(--blue)}
+.btn{background:var(--blue);color:white;padding:12px 16px;border-radius:10px;font-weight:700;transition:transform .2s,background .2s}
+.btn:hover{transform:translateY(-1px);background:#0b43b7}
+.btn.gold{background:var(--gold);color:var(--navy)}
+.btn.light{background:#edf2ff;color:var(--blue)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.hero{width:90%;margin:25px auto 22px;min-height:350px;border-radius:25px;overflow:hidden;position:relative;background:linear-gradient(110deg,#07152e 5%,#103b83 62%,#1355d8);display:grid;grid-template-columns:1.15fr .85fr;align-items:center;color:#fff}
+.hero-content{padding:44px 0 44px 7%;position:relative;z-index:2}
+.tag{color:var(--gold);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:2px}
+.hero h1{font-size:clamp(34px,4.3vw,58px);line-height:1.06;letter-spacing:-1.5px;max-width:610px;margin:18px 0 14px}
+.hero p{color:#dce7ff;line-height:1.7;max-width:500px;font-size:15px}
+.hero .btn{margin-top:10px;padding:14px 20px}
+.hero-visual{height:100%;min-height:320px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.hero-visual:before{content:"";position:absolute;width:310px;height:310px;border-radius:50%;background:#ffffff12;border:1px solid #ffffff20}
+.hero-visual img{position:relative;z-index:1;width:92%;height:310px;object-fit:contain;filter:drop-shadow(0 20px 24px #0005)}
+.hero-note{position:absolute;z-index:2;right:6%;bottom:22px;background:#fff;color:var(--navy);padding:13px 17px;border-radius:13px;box-shadow:0 8px 25px #0002;font-size:12px}
+.hero-note strong{display:block;font-size:15px;margin-bottom:3px}
+.trust{width:90%;margin:0 auto 30px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.trust-item{background:white;border:1px solid var(--border);padding:17px;border-radius:14px;display:flex;align-items:center;gap:12px}
+.trust-icon{width:40px;height:40px;border-radius:12px;background:#edf2ff;display:grid;place-items:center;font-size:21px;flex-shrink:0}
+.trust-item strong{font-size:13px;display:block}
+.trust-item small{color:var(--muted);display:block;margin-top:4px;font-size:11px}
+main{width:90%;max-width:1500px;margin:auto}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:34px 0 17px}
+.section-head h2{margin:0;font-size:25px;letter-spacing:-.5px}
+.section-head p{margin:7px 0 0;color:var(--muted);font-size:13px}
+.muted{color:var(--muted);font-size:12px}
+.category-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.category-card{position:relative;height:175px;border-radius:17px;overflow:hidden;background:#dfe7f4;text-align:left;color:white;isolation:isolate}
+.category-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .35s;z-index:-2}
+.category-card:after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#061329e8 0%,#07152e30 75%);z-index:-1}
+.category-card:hover img{transform:scale(1.07)}
+.category-card .cat-content{position:absolute;left:17px;right:12px;bottom:16px}
+.category-card strong{display:block;font-size:18px;margin-bottom:5px}
+.category-card span{font-size:12px;color:#e2eaff}
+.category-card .arrow{float:right;background:#ffffff25;border-radius:50%;width:28px;height:28px;display:grid;place-items:center}
+.categories{display:flex;gap:9px;overflow-x:auto;padding:4px 0 14px;scrollbar-width:thin}
+.categories button{white-space:nowrap;background:white;color:#34415a;border:1px solid var(--border);border-radius:30px;padding:10px 16px;font-size:13px}
+.categories button.active{background:var(--navy);border-color:var(--navy);color:white}
+.deal-banner{background:linear-gradient(110deg,#fff0d2,#ffe4aa);border:1px solid #ffe0a0;border-radius:18px;padding:21px 24px;display:flex;justify-content:space-between;align-items:center;gap:14px;margin:26px 0}
+.deal-left{display:flex;align-items:center;gap:14px}
+.deal-symbol{background:#fff9ed;border-radius:14px;width:48px;height:48px;display:grid;place-items:center;font-size:25px}
+.deal-banner strong{font-size:20px;display:block}
+.deal-banner .muted{margin-top:5px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}
+.card{background:#fff;border:1px solid #edf0f6;border-radius:17px;overflow:hidden;box-shadow:0 5px 20px #0b1a3008;min-width:0;display:flex;flex-direction:column;transition:transform .2s,box-shadow .2s}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 28px #0b1a3012}
+.photo{height:205px;background:#f0f3f9;position:relative;overflow:hidden}
+.photo img{width:100%;height:100%;object-fit:contain;padding:12px;display:block;mix-blend-mode:multiply}
+.deal{position:absolute;top:11px;left:11px;background:var(--gold);color:#563600;padding:6px 9px;border-radius:7px;font-size:10px;font-weight:900}
+.card-body{padding:15px;display:flex;flex-direction:column;gap:9px;flex:1}
+.product-category{color:var(--blue);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px}
+.card h3{margin:0;font-size:15px;line-height:1.4;min-height:40px}
+.desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1}
+.price{font-size:19px;font-weight:900;letter-spacing:-.4px}
+.old{font-size:12px;color:#8a93a4;text-decoration:line-through;margin-left:6px;font-weight:normal}
+.stock{font-size:11px;color:var(--green)}
+.stock.out{color:#bf3543}
+.card .btn{width:100%;margin-top:4px}
+.empty{grid-column:1/-1;text-align:center;background:white;border:1px solid var(--border);border-radius:16px;padding:40px 20px;color:var(--muted)}
+.empty strong{display:block;color:var(--navy);font-size:18px;margin-bottom:8px}
+.info-strip{margin:30px 0;background:#eaf0ff;border-radius:16px;padding:20px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.info-strip strong{font-size:17px}
+.info-strip p{font-size:13px;color:#596781;margin:6px 0 0}
+footer{margin-top:50px;background:var(--navy);color:white;padding:34px 5%;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:13px}
+footer strong{font-size:16px}
+footer p{color:#c6d3ec;line-height:1.7}
+.footer-brand span{color:var(--gold)}
+.cart-backdrop{position:fixed;inset:0;background:#06112685;z-index:19;display:none}
+.cart-backdrop.show{display:block}
+.cart{position:fixed;z-index:20;right:0;top:0;bottom:0;width:min(440px,100%);background:white;padding:22px;transform:translateX(105%);transition:transform .25s;overflow:auto}
+.cart.show{transform:translateX(0)}
+.cart-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cart-head h2{margin:0}
+.cart-list{display:grid;gap:13px;margin:20px 0}
+.cart-item{display:grid;grid-template-columns:62px 1fr auto;gap:10px;align-items:center;border-bottom:1px solid #edf0f6;padding-bottom:13px}
+.cart-item img{width:62px;height:62px;object-fit:contain;background:#f0f3f9;border-radius:9px}
+.cart-item strong{font-size:12px}
+.qty{display:flex;gap:10px;align-items:center;margin-top:7px}
+.qty button{background:#eaf0ff;color:var(--blue);border-radius:6px;padding:5px 10px}
+.total{display:flex;justify-content:space-between;font-size:19px;font-weight:bold;margin:20px 0}
+.checkout input,.checkout textarea{width:100%;padding:12px;border:1px solid #dce2ed;border-radius:9px;margin:6px 0 12px;outline:none}
+.checkout input:focus,.checkout textarea:focus{border-color:var(--blue)}
+.checkout label{font-size:12px;font-weight:bold}
+.checkout h3{margin-bottom:12px}
+@media(max-width:1050px){
+ .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .photo{height:180px}
+ .hero{grid-template-columns:1.1fr .9fr}
+}
+@media(max-width:700px){
+ .top{padding:9px 4%;font-size:10px}
+ header{padding:12px 4%;gap:10px;flex-wrap:wrap}
+ .brand{font-size:18px}
+ header>.btn{padding:10px 12px;font-size:12px}
+ .search{order:3;flex-basis:100%;max-width:none}
+ .search input{padding:12px}
+ .hero{width:92%;margin:15px auto 17px;grid-template-columns:1fr;min-height:0;border-radius:20px}
+ .hero-content{padding:28px 23px 10px}
+ .hero h1{font-size:36px;letter-spacing:-1px;margin:13px 0}
+ .hero p{font-size:13px;line-height:1.65}
+ .hero .btn{padding:12px 15px}
+ .hero-visual{min-height:175px;height:175px}
+ .hero-visual:before{width:170px;height:170px}
+ .hero-visual img{height:180px;width:85%}
+ .hero-note{right:12px;bottom:10px;padding:9px 12px}
+ .hero-note strong{font-size:12px}
+ .hero-note span{font-size:10px}
+ .trust{width:92%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:25px}
+ .trust-item{padding:10px 7px;display:block;text-align:center}
+ .trust-icon{width:32px;height:32px;margin:0 auto 7px;font-size:17px}
+ .trust-item strong{font-size:10px;line-height:1.4}
+ .trust-item small{display:none}
+ main{width:92%}
+ .section-head{margin:26px 0 14px}
+ .section-head h2{font-size:21px}
+ .section-head p{font-size:12px}
+ .category-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .category-card{height:140px;border-radius:13px}
+ .category-card .cat-content{left:12px;bottom:12px}
+ .category-card strong{font-size:15px}
+ .category-card span{font-size:10px}
+ .category-card .arrow{width:24px;height:24px}
+ .categories{gap:7px}
+ .categories button{padding:9px 13px;font-size:12px}
+ .deal-banner{padding:14px;border-radius:14px;margin:18px 0}
+ .deal-symbol{width:39px;height:39px;font-size:20px}
+ .deal-banner strong{font-size:15px}
+ .deal-banner .muted{font-size:10px}
+ .deal-banner .btn{font-size:11px;padding:10px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .photo{height:155px}
+ .photo img{padding:8px}
+ .card{border-radius:13px}
+ .card-body{padding:10px;gap:8px}
+ .card h3{font-size:13px;min-height:36px}
+ .desc{font-size:11px}
+ .price{font-size:16px}
+ .old{font-size:10px;margin-left:3px}
+ .stock{font-size:10px}
+ .card .btn{padding:10px 5px;font-size:11px}
+ .deal{top:7px;left:7px;padding:5px 7px;font-size:9px}
+ .info-strip{align-items:flex-start;flex-direction:column;padding:17px}
+ .info-strip strong{font-size:15px}
+ footer{padding:28px 5%;gap:12px;flex-direction:column}
+}
+@media(max-width:360px){
+ .hero h1{font-size:31px}
+ .hero-visual{height:145px;min-height:145px}
+ .photo{height:125px}
+ .trust-item strong{font-size:9px}
+ .deal-banner .btn{padding:9px 7px}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span>Welcome to <strong>SAVITAR GLOBAL ENTERPRISES</strong></span>
+  <span>Electronics • Quality • Value</span>
+</div>
+
+<header>
+  <a href="#" class="brand">SAVITAR <span>GLOBAL</span></a>
+  <div class="search">
+    <input id="search" type="search" placeholder="Search phones, laptops, gaming..." aria-label="Search products">
+    <button class="btn" onclick="render()">Search</button>
+  </div>
+  <button class="btn gold" onclick="openCart()">🛒 Cart <span id="cartCount">0</span></button>
+</header>
+
+<section class="hero">
+  <div class="hero-content">
+    <div class="tag">Your trusted tech store</div>
+    <h1>Upgrade your tech. Elevate your everyday.</h1>
+    <p>Discover smartphones, computers, gaming consoles and accessories at SAVITAR GLOBAL ENTERPRISES. Great technology, great value.</p>
+    <button class="btn gold" onclick="document.getElementById('shop').scrollIntoView({behavior:'smooth'})">Shop products →</button>
+  </div>
+  <div class="hero-visual">
+    <img src="https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=800&q=85" alt="Modern smartphone">
+    <div class="hero-note"><strong>Tech made better</strong><span>Find your next favourite device</span></div>
+  </div>
+</section>
+
+<div class="trust">
+  <div class="trust-item"><div class="trust-icon">✓</div><strong>Selected electronics</strong><small>Products for everyday life</small></div>
+  <div class="trust-item"><div class="trust-icon">🔥</div><strong>Sweet Deals</strong><small>Special prices on selected items</small></div>
+  <div class="trust-item"><div class="trust-icon">💬</div><strong>WhatsApp ordering</strong><small>Contact us to confirm your order</small></div>
+</div>
+
+<main id="shop">
+  <div class="section-head">
+    <div><h2>Shop by category</h2><p>Find your next favourite device</p></div>
+  </div>
+
+  <div class="category-grid">
+    <button class="category-card" onclick="setCategory('Phones')">
+      <img src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=700&q=80" alt="Smartphones">
+      <div class="cat-content"><strong>Smartphones <span class="arrow">↗</span></strong><span>iPhone, Samsung & more</span></div>
+    </button>
+    <button class="category-card" onclick="setCategory('Computers')">
+      <img src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=700&q=80" alt="Laptop computers">
+      <div class="cat-content"><strong>Computers <span class="arrow">↗</span></strong><span>Laptops and work essentials</span></div>
+    </button>
+    <button class="category-card" onclick="setCategory('Gaming')">
+      <img src="https://images.unsplash.com/photo-1486572788966-cfd3df1f5b42?auto=format&fit=crop&w=700&q=80" alt="Gaming setup">
+      <div class="cat-content"><strong>Gaming <span class="arrow">↗</span></strong><span>Level up your setup</span></div>
+    </button>
+    <button class="category-card" onclick="setCategory('Accessories')">
+      <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=80" alt="Tech accessories">
+      <div class="cat-content"><strong>Accessories <span class="arrow">↗</span></strong><span>Audio, watches and more</span></div>
+    </button>
+  </div>
+
+  <div class="deal-banner">
+    <div class="deal-left">
+      <div class="deal-symbol">🔥</div>
+      <div><strong>Sweet Deals</strong><div class="muted">Special prices on selected products</div></div>
+    </div>
+    <button class="btn" onclick="setCategory('Sweet Deals')">Shop deals →</button>
+  </div>
+
+  <div class="section-head">
+    <div><h2 id="listingTitle">Featured products</h2><p>Explore our electronics collection</p></div>
+    <span id="resultCount" class="muted">Loading...</span>
+  </div>
+
+  <div class="categories" id="filters"></div>
+  <div class="grid" id="products"><div class="empty">Loading products...</div></div>
+
+  <div class="info-strip">
+    <div><strong>Ready to find your next device?</strong><p>Browse the collection and message us on WhatsApp to confirm your order.</p></div>
+    <a class="btn" href="https://wa.me/2348078982335" target="_blank" rel="noopener">Chat with us ↗</a>
+  </div>
+</main>
+
+<footer>
+  <div><strong class="footer-brand">SAVITAR <span>GLOBAL ENTERPRISES</span></strong><p>Electronics for everyday life.</p></div>
+  <div><strong>Questions or ready to order?</strong><p>Contact us on WhatsApp: 08078982335</p></div>
+  <div>© <span id="year"></span> SAVITAR GLOBAL ENTERPRISES</div>
+</footer>
+
+<div id="backdrop" class="cart-backdrop" onclick="closeCart()"></div>
+<aside id="cart" class="cart" aria-label="Shopping cart">
+  <div class="cart-head"><h2>Your cart</h2><button class="btn light" onclick="closeCart()">Close ✕</button></div>
+  <div id="cartList" class="cart-list"></div>
+  <div class="total"><span>Total</span><span id="cartTotal">₦0</span></div>
+  <form class="checkout" onsubmit="checkout(event)">
+    <h3>Delivery details</h3>
+    <label for="customerName">Full name</label>
+    <input id="customerName" required autocomplete="name" placeholder="Your full name">
+    <label for="customerPhone">Phone number</label>
+    <input id="customerPhone" required autocomplete="tel" placeholder="080...">
+    <label for="customerAddress">Delivery address</label>
+    <textarea id="customerAddress" required rows="3" placeholder="Enter your delivery address"></textarea>
+    <button class="btn" style="width:100%" type="submit">Order via WhatsApp</button>
+    <p class="muted">Your order details will open in WhatsApp for confirmation.</p>
+  </form>
+</aside>
+
+<script>
+const WHATSAPP = "2348078982335";
+
+const fallbackProducts = [
+ {id:"sav001",name:"iPhone 15 128GB",category:"Phones",price:950000,stock:10,description:"Apple smartphone with a beautiful display.",image:"https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav002",name:"iPhone 13 128GB",category:"Phones",price:650000,dealPrice:620000,sweetDeal:true,stock:8,description:"Powerful iPhone with an elegant design.",image:"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav003",name:"Samsung Galaxy S24",category:"Phones",price:850000,stock:7,description:"Premium Samsung smartphone.",image:"https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav004",name:"Samsung Galaxy A55",category:"Phones",price:520000,stock:12,description:"Stylish smartphone for everyday use.",image:"https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav005",name:"Tecno Camon 30",category:"Phones",price:285000,stock:15,description:"Feature-packed smartphone for everyday life.",image:"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav006",name:"Infinix Note 40",category:"Phones",price:265000,dealPrice:250000,sweetDeal:true,stock:10,description:"Large-screen smartphone with modern features.",image:"https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav007",name:"Apple Watch Series 9",category:"Accessories",price:550000,stock:5,description:"A smart watch for activity and everyday use.",image:"https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav008",name:"PlayStation 5",category:"Gaming",price:950000,stock:4,description:"Bring your gaming setup to life.",image:"https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav009",name:"HP EliteBook Laptop",category:"Computers",price:485000,stock:6,description:"A practical laptop for work and productivity.",image:"https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=700&q=85"},
+ {id:"sav010",name:"Wireless Bluetooth Earbuds",category:"Accessories",price:35000,dealPrice:30000,sweetDeal:true,stock:20,description:"Compact wireless audio for daily listening.",image:"https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?auto=format&fit=crop&w=700&q=85"}
+];
+
+const filters = [
+ {label:"All products",category:"All"},
+ {label:"Phones",category:"Phones"},
+ {label:"iPhone",category:"iPhone"},
+ {label:"Samsung",category:"Samsung"},
+ {label:"Computers",category:"Computers"},
+ {label:"Gaming",category:"Gaming"},
+ {label:"Accessories",category:"Accessories"},
+ {label:"Sweet Deals 🔥",category:"Sweet Deals"}
+];
+
+let products = [];
+let usingFallback = false;
+let selectedCategory = "All";
+let cartItems = {};
+
+const money = value => "₦" + Number(value || 0).toLocaleString("en-NG");
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const currentPrice = p => p.sweetDeal && Number(p.dealPrice)>0 ? Number(p.dealPrice) : Number(p.price);
+const imageUrl = p => p.image || p.imageUrl || p.images?.[0] || "";
+
+function normalizeProduct(p){
+ const name = String(p.name || "Electronics product");
+ let category = String(p.category || "Accessories");
+ if(/iphone/i.test(name)) category = "iPhone";
+ else if(/samsung|galaxy/i.test(name)) category = "Samsung";
+ else if(/tecno|infinix|phone/i.test(name)) category = "Phones";
+ else if(/laptop|computer|elitebook|macbook/i.test(name)) category = "Computers";
+ else if(/playstation|xbox|gaming/i.test(name)) category = "Gaming";
+ else if(/watch|earbud|headphone|bluetooth|accessor/i.test(name)) category = "Accessories";
+
+ return {
+   ...p,
+   id:String(p.id ?? name),
+   name,
+   category,
+   price:Number(p.price || 0),
+   dealPrice:Number(p.dealPrice || p.deal_price || 0),
+   stock:Number(p.stock ?? 0),
+   sweetDeal:Boolean(p.sweetDeal || p.sweet_deal || p.isSweetDeal || p.dealPrice || p.deal_price),
+   description:p.description || "Quality electronics from SAVITAR GLOBAL."
+ };
+}
+
+async function loadProducts(){
+ const container=document.getElementById("products");
+ try{
+   const response=await fetch("/api/products",{cache:"no-store"});
+   if(!response.ok) throw new Error("Products API unavailable");
+   const data=await response.json();
+   if(!Array.isArray(data)) throw new Error("Invalid products response");
+
+   // Prefer the real catalogue; use sample display data only if the API is empty.
+   if(data.length){
+     products=data.map(normalizeProduct);
+     usingFallback=false;
+   }else{
+     products=fallbackProducts.map(normalizeProduct);
+     usingFallback=true;
+   }
+ }catch(error){
+   // Keep the storefront visible if the server is not returning products.
+   products=fallbackProducts.map(normalizeProduct);
+   usingFallback=true;
+ }
+ renderFilters();
+ render();
+}
+
+function renderFilters(){
+ document.getElementById("filters").innerHTML=filters.map(f=>
+   `<button class="${selectedCategory===f.category?'active':''}" onclick="setCategory('${escapeHtml(f.category)}')">${escapeHtml(f.label)}</button>`
+ ).join("");
+}
+
+function setCategory(category){
+ selectedCategory=category;
+ renderFilters();
+ render();
+ document.getElementById("listingTitle").textContent =
+   category==="All"?"Featured products":
+   category==="Sweet Deals"?"🔥 Sweet Deals":category;
+ document.getElementById("shop").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function matchesCategory(p){
+ if(selectedCategory==="All") return true;
+ if(selectedCategory==="Sweet Deals") return p.sweetDeal;
+ if(selectedCategory==="Phones") return ["iPhone","Samsung","Phones","Other Phones"].includes(p.category);
+ if(selectedCategory==="iPhone") return /iphone/i.test(p.name);
+ if(selectedCategory==="Samsung") return /samsung|galaxy/i.test(p.name);
+ return p.category===selectedCategory;
+}
+
+function render(){
+ const search=document.getElementById("search");
+ const term=search.value.trim().toLowerCase();
+
+ const shown=products.filter(p=>{
+   const searchable=[p.name,p.category,p.description,p.storage,p.color].join(" ").toLowerCase();
+   return matchesCategory(p)&&searchable.includes(term);
+ });
+
+ document.getElementById("resultCount").textContent=
+   `${shown.length} item${shown.length===1?"":"s"}`+(usingFallback?" · preview catalogue":"");
+
+ const container=document.getElementById("products");
+
+ if(!shown.length){
+   container.innerHTML='<div class="empty"><strong>No products found</strong>Try another search or category.</div>';
+   return;
+ }
+
+ container.innerHTML=shown.map(p=>{
+   const image=imageUrl(p);
+   const price=currentPrice(p);
+   const stock=Number(p.stock||0);
+   const safeId=escapeHtml(p.id);
+
+   return `<article class="card">
+     <div class="photo">
+       <img src="${escapeHtml(image || 'https://placehold.co/600x450/f0f3f8/334155?text=Savitar+Tech')}"
+         alt="${escapeHtml(p.name)}" loading="lazy"
+         onerror="this.onerror=null;this.src='https://placehold.co/600x450/f0f3f8/334155?text=Savitar+Tech'">
+       ${p.sweetDeal?'<span class="deal">SWEET DEAL</span>':""}
+     </div>
+     <div class="card-body">
+       <div class="product-category">${escapeHtml(p.category)}</div>
+       <h3>${escapeHtml(p.name)}</h3>
+       <div class="desc">${escapeHtml(p.description)}</div>
+       <div><span class="price">${money(price)}</span>${p.sweetDeal?`<span class="old">${money(p.price)}</span>`:""}</div>
+       <div class="stock ${stock<=0?'out':''}">${stock>0?`${stock} available`:"Out of stock"}</div>
+       <button class="btn" ${stock<=0?'disabled':''} onclick="addToCart('${safeId}')">${stock>0?"Add to cart":"Unavailable"}</button>
+     </div>
+   </article>`;
+ }).join("");
+}
+
+function addToCart(id){
+ const p=products.find(x=>String(x.id)===String(id));
+ if(!p||Number(p.stock)<=0)return;
+ const existing=cartItems[id]?.qty||0;
+ if(existing>=Number(p.stock)){alert("You have reached the available stock for this item.");return}
+ cartItems[id]={product:p,qty:existing+1};
+ updateCart();
+}
+
+function changeQty(id,delta){
+ const item=cartItems[id];
+ if(!item)return;
+ const next=item.qty+delta;
+ if(next<=0)delete cartItems[id];
+ else if(next<=Number(item.product.stock))item.qty=next;
+ else alert("That quantity is not available.");
+ updateCart();
+}
+
+function updateCart(){
+ const items=Object.entries(cartItems);
+ document.getElementById("cartCount").textContent=items.reduce((n,[,v])=>n+v.qty,0);
+ document.getElementById("cartTotal").textContent=money(items.reduce((n,[,v])=>n+currentPrice(v.product)*v.qty,0));
+ document.getElementById("cartList").innerHTML=items.length?items.map(([id,item])=>
+   `<div class="cart-item">
+     <img src="${escapeHtml(imageUrl(item.product)||'https://placehold.co/100')}" alt="">
+     <div><strong>${escapeHtml(item.product.name)}</strong>
+       <div class="muted">${money(currentPrice(item.product))}</div>
+       <div class="qty"><button type="button" onclick="changeQty('${escapeHtml(id)}',-1)">−</button>${item.qty}<button type="button" onclick="changeQty('${escapeHtml(id)}',1)">+</button></div>
+     </div>
+     <strong>${money(currentPrice(item.product)*item.qty)}</strong>
+   </div>`
+ ).join(""):'<div class="empty">Your cart is empty. Add something you love!</div>';
+}
+
+function openCart(){
+ document.getElementById("cart").classList.add("show");
+ document.getElementById("backdrop").classList.add("show");
+}
+function closeCart(){
+ document.getElementById("cart").classList.remove("show");
+ document.getElementById("backdrop").classList.remove("show");
+}
+
+function checkout(event){
+ event.preventDefault();
+ const items=Object.values(cartItems);
+ if(!items.length){alert("Your cart is empty.");return}
+
+ const name=document.getElementById("customerName").value.trim();
+ const phone=document.getElementById("customerPhone").value.trim();
+ const address=document.getElementById("customerAddress").value.trim();
+ if(!name||!phone||!address){alert("Please complete your delivery details.");return}
+
+ const lines=items.map(({product,qty})=>`• ${product.name} x${qty} — ${money(currentPrice(product)*qty)}`);
+ const total=items.reduce((n,item)=>n+currentPrice(item.product)*item.qty,0);
+ const message=`Hello SAVITAR GLOBAL ENTERPRISES, I want to place an order.\n\nCustomer: ${name}\nPhone: ${phone}\nDelivery address: ${address}\n\nOrder:\n${lines.join("\n")}\n\nTotal: ${money(total)}\n\nPlease confirm availability and delivery.`;
+
+ window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(message)}`,"_blank","noopener");
+}
+
+document.getElementById("search").addEventListener("input",render);
+document.getElementById("year").textContent=new Date().getFullYear();
+updateCart();
+loadProducts();
+</script>
+</body>
+</html>

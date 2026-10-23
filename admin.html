@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07152e">
+<title>SAVITAR Admin Dashboard</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f5fa;color:#17233a}
+header{background:#07152e;color:white;padding:18px 5%;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+header h1{font-size:20px;margin:0}header a{color:#ffbd45;text-decoration:none}
+main{width:min(1200px,92%);margin:25px auto}
+.panel{background:white;border-radius:16px;padding:22px;margin-bottom:20px;box-shadow:0 5px 20px #07152e0b}
+h2{margin-top:0;font-size:21px}.muted{color:#68748a;font-size:13px}
+input,select,textarea{font:inherit;width:100%;padding:12px;border:1px solid #dce2ed;border-radius:9px;background:white}
+label{display:block;font-size:12px;font-weight:bold;margin:10px 0 5px}
+button{font:inherit;cursor:pointer;border:0;border-radius:9px;padding:11px 14px;font-weight:bold}
+.primary{background:#1355d8;color:white}.dark{background:#07152e;color:white}.light{background:#eaf0ff;color:#1355d8}.danger{background:#ffe9e9;color:#a51f2d}.gold{background:#ffbd45;color:#17233a}
+.hidden{display:none!important}.message{padding:12px;border-radius:9px;margin:12px 0;background:#edf3ff;color:#23447e;font-size:13px}.message.error{background:#fff0f0;color:#a51f2d}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f4f7ff;border-radius:12px;padding:17px}.stat span{display:block;color:#68748a;font-size:12px}.stat strong{font-size:25px;display:block;margin-top:8px}
+.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}.wide{grid-column:1/-1}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.checkrow{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:14px}.checkrow input{width:auto}
+.preview{max-width:160px;max-height:130px;object-fit:contain;border-radius:9px;margin-top:10px;background:#f0f3f8}
+.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:650px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #edf0f5;font-size:13px}th{color:#68748a;font-size:11px;text-transform:uppercase}td img{width:55px;height:55px;object-fit:cover;border-radius:8px;background:#f0f3f8}.productname{font-weight:bold}.pill{display:inline-block;padding:5px 7px;border-radius:6px;background:#eaf0ff;color:#1355d8;font-size:11px}.pill.deal{background:#fff0d2;color:#785000}.stockinput{width:80px;padding:8px}
+@media(max-width:650px){main{width:94%;margin:15px auto}.panel{padding:16px}.formgrid{grid-template-columns:1fr}.wide{grid-column:auto}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:21px}header{padding:16px 4%}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>SAVITAR GLOBAL ENTERPRISES</h1><div class="muted" style="color:#bdc9df">Store administration</div></div>
+  <div class="actions" style="margin:0"><a href="/" style="align-self:center">View storefront ↗</a><button id="logoutBtn" class="gold hidden" onclick="logout()">Log out</button></div>
+</header>
+<main>
+  <section id="loginPanel" class="panel" style="max-width:460px;margin:45px auto">
+    <h2>Admin login</h2>
+    <p class="muted">Sign in to manage your store catalogue.</p>
+    <form id="loginForm">
+      <label for="password">Admin password</label>
+      <input id="password" type="password" required autocomplete="current-password" placeholder="Enter admin password">
+      <div class="actions"><button class="primary" type="submit">Sign in</button></div>
+    </form>
+    <div id="loginMessage" class="message hidden"></div>
+  </section>
+
+  <div id="dashboard" class="hidden">
+    <section class="panel">
+      <h2>Store overview</h2>
+      <div class="stats">
+        <div class="stat"><span>Total products</span><strong id="totalProducts">0</strong></div>
+        <div class="stat"><span>Units in stock</span><strong id="totalStock">0</strong></div>
+        <div class="stat"><span>Sweet Deals</span><strong id="totalDeals">0</strong></div>
+      </div>
+    </section>
+
+    <section class="panel" id="editor">
+      <h2 id="formTitle">Add a product</h2>
+      <p class="muted">Products saved here appear in your storefront.</p>
+      <form id="productForm">
+        <div class="formgrid">
+          <div><label for="name">Product name *</label><input id="name" required maxlength="120" placeholder="e.g. iPhone 15 128GB"></div>
+          <div><label for="category">Category *</label>
+            <select id="category" required>
+              <option value="iPhone">iPhone</option><option value="Samsung">Samsung</option><option value="Other Phones">Other Phones</option><option value="iWatch">iWatch</option><option value="Gaming">Gaming</option><option value="Computers">Computers</option><option value="Accessories">Accessories</option>
+            </select>
+          </div>
+          <div><label for="price">Regular price (₦) *</label><input id="price" type="number" min="0" step="1" required></div>
+          <div><label for="stock">Stock quantity *</label><input id="stock" type="number" min="0" step="1" required value="1"></div>
+          <div><label for="condition">Condition</label><select id="condition"><option>Brand-new</option><option>Fairly Used</option></select></div>
+          <div><label for="storage">Storage / specification</label><input id="storage" placeholder="e.g. 128GB, 16GB RAM"></div>
+          <div><label for="color">Colour</label><input id="color" placeholder="e.g. Black"></div>
+          <div><label for="imageUrl">Image URL (optional)</label><input id="imageUrl" type="url" placeholder="https://..."></div>
+          <div class="wide"><label for="imageFile">Or upload a product image (max 8MB)</label><input id="imageFile" type="file" accept="image/*"><img id="imagePreview" class="preview hidden" alt="Selected product image preview"></div>
+          <div class="wide"><label for="description">Product description</label><textarea id="description" rows="3" maxlength="1500" placeholder="Describe this product"></textarea></div>
+          <div class="wide"><label class="checkrow"><input type="checkbox" id="sweetDeal"> Mark as a Sweet Deal</label></div>
+          <div id="dealPriceWrap" class="wide hidden"><label for="dealPrice">Sweet Deal price (₦) *</label><input id="dealPrice" type="number" min="0" step="1"></div>
+        </div>
+        <div id="formMessage" class="message hidden"></div>
+        <div class="actions"><button id="saveBtn" class="primary" type="submit">Publish product</button><button type="button" class="light" onclick="resetForm()">Clear form</button></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Product catalogue</h2><button class="light" onclick="loadProducts()">Refresh</button></div>
+      <div class="tablewrap"><table><thead><tr><th>Product</th><th>Details</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead><tbody id="productRows"><tr><td colspan="5">Loading...</td></tr></tbody></table></div>
+      <div id="listMessage" class="message hidden"></div>
+    </section>
+  </div>
+</main>
+<script>
+let products = [];
+let editingId = null;
+let uploadedImage = "";
+
+const $ = id => document.getElementById(id);
+const money = n => "₦" + Number(n || 0).toLocaleString("en-NG");
+const escapeHtml = v => String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const productImage = p => p.image || p.imageUrl || "";
+
+async function api(url, options = {}) {
+  const response = await fetch(url, {
+    credentials:"same-origin",
+    ...options,
+    headers: {
+      ...(options.body && !(options.body instanceof FormData) ? {"Content-Type":"application/json"} : {}),
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(()=>({error:"The server returned an invalid response."}));
+  if(!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+  return data;
+}
+
+function showMessage(id, text, error = false) {
+  const el=$(id);
+  el.textContent=text;
+  el.classList.remove("hidden","error");
+  if(error)el.classList.add("error");
+}
+function hideMessage(id){$(id).classList.add("hidden")}
+
+async function checkSession(){
+  try{
+    const result=await api("/api/admin/session");
+    if(result.loggedIn)showDashboard();
+    else showLogin();
+  }catch(e){showLogin();showMessage("loginMessage","Could not connect to the server. Make sure it is running.",true)}
+}
+function showLogin(){
+  $("loginPanel").classList.remove("hidden");
+  $("dashboard").classList.add("hidden");
+  $("logoutBtn").classList.add("hidden");
+}
+function showDashboard(){
+  $("loginPanel").classList.add("hidden");
+  $("dashboard").classList.remove("hidden");
+  $("logoutBtn").classList.remove("hidden");
+  loadProducts();
+}
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();hideMessage("loginMessage");
+  try{
+    await api("/api/admin/login",{method:"POST",body:JSON.stringify({password:$("password").value})});
+    $("password").value="";
+    showDashboard();
+  }catch(error){showMessage("loginMessage",error.message,true)}
+});
+async function logout(){
+  try{await api("/api/admin/logout",{method:"POST"})}catch(e){}
+  showLogin();
+}
+async function loadProducts(){
+  hideMessage("listMessage");
+  try{
+    products=await api("/api/products");
+    if(!Array.isArray(products))throw new Error("Invalid catalogue data.");
+    $("totalProducts").textContent=products.length;
+    $("totalStock").textContent=products.reduce((n,p)=>n+Number(p.stock||0),0);
+    $("totalDeals").textContent=products.filter(p=>p.sweetDeal).length;
+    renderRows();
+  }catch(error){
+    $("productRows").innerHTML='<tr><td colspan="5">Could not load products.</td></tr>';
+    showMessage("listMessage",error.message,true);
+  }
+}
+function renderRows(){
+  if(!products.length){$("productRows").innerHTML='<tr><td colspan="5">No products yet. Add your first product above.</td></tr>';return}
+  $("productRows").innerHTML=products.map(p=>{
+    const image=productImage(p);
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${image?`<img src="${escapeHtml(image)}" alt="" onerror="this.style.visibility='hidden'">`:""}<div><div class="productname">${escapeHtml(p.name)}</div><div class="muted">${escapeHtml(p.id)}</div></div></div></td>
+      <td>${escapeHtml(p.category)}${p.sweetDeal?'<br><span class="pill deal">Sweet Deal</span>':""}<br><span class="muted">${escapeHtml(p.condition||"Brand-new")}</span></td>
+      <td><strong>${money(p.sweetDeal&&p.dealPrice?p.dealPrice:p.price)}</strong>${p.sweetDeal?`<br><span class="muted" style="text-decoration:line-through">${money(p.price)}</span>`:""}</td>
+      <td><input class="stockinput" type="number" min="0" step="1" value="${Number(p.stock||0)}" id="stock-${escapeHtml(p.id)}" aria-label="Stock for ${escapeHtml(p.name)}"><button class="light" onclick="updateStock('${String(p.id).replace(/'/g,"\\'")}')">Save</button></td>
+      <td><div class="actions" style="margin:0"><button class="light" onclick="editProduct('${String(p.id).replace(/'/g,"\\'")}')">Edit</button><button class="danger" onclick="deleteProduct('${String(p.id).replace(/'/g,"\\'")}')">Delete</button></div></td>
+    </tr>`;
+  }).join("");
+}
+$("sweetDeal").addEventListener("change",()=>{
+  $("dealPriceWrap").classList.toggle("hidden",!$("sweetDeal").checked);
+  $("dealPrice").required=$("sweetDeal").checked;
+});
+$("imageFile").addEventListener("change",()=>{
+  const file=$("imageFile").files[0];
+  uploadedImage="";
+  if(!file){$("imagePreview").classList.add("hidden");return}
+  if(!file.type.startsWith("image/")){showMessage("formMessage","Please choose an image file.",true);$("imageFile").value="";return}
+  if(file.size>8*1024*1024){showMessage("formMessage","Image must be 8MB or smaller.",true);$("imageFile").value="";return}
+  $("imagePreview").src=URL.createObjectURL(file);
+  $("imagePreview").classList.remove("hidden");
+  hideMessage("formMessage");
+});
+function editProduct(id){
+  const p=products.find(x=>String(x.id)===String(id));if(!p)return;
+  editingId=p.id;uploadedImage="";
+  $("name").value=p.name||"";
+  $("category").value=p.category||"iPhone";
+  $("price").value=p.price??"";
+  $("stock").value=p.stock??0;
+  $("condition").value=p.condition||"Brand-new";
+  $("storage").value=p.storage||"";
+  $("color").value=p.color||"";
+  $("imageUrl").value=productImage(p);
+  $("description").value=p.description||"";
+  $("sweetDeal").checked=Boolean(p.sweetDeal);
+  $("dealPrice").value=p.dealPrice??"";
+  $("dealPriceWrap").classList.toggle("hidden",!p.sweetDeal);
+  $("dealPrice").required=Boolean(p.sweetDeal);
+  $("imageFile").value="";
+  if(productImage(p)){$("imagePreview").src=productImage(p);$("imagePreview").classList.remove("hidden")}
+  else $("imagePreview").classList.add("hidden");
+  $("formTitle").textContent="Edit product";
+  $("saveBtn").textContent="Save changes";
+  hideMessage("formMessage");
+  $("editor").scrollIntoView({behavior:"smooth"});
+}
+function resetForm(){
+  editingId=null;uploadedImage="";
+  $("productForm").reset();
+  $("stock").value=1;
+  $("dealPriceWrap").classList.add("hidden");
+  $("dealPrice").required=false;
+  $("imagePreview").classList.add("hidden");
+  $("formTitle").textContent="Add a product";
+  $("saveBtn").textContent="Publish product";
+  hideMessage("formMessage");
+}
+$("productForm").addEventListener("submit",async e=>{
+  e.preventDefault();hideMessage("formMessage");
+  const price=Number($("price").value);
+  const stock=Number($("stock").value);
+  const sweetDeal=$("sweetDeal").checked;
+  const dealPrice=sweetDeal?Number($("dealPrice").value):null;
+  if(!Number.isFinite(price)||price<0||!Number.isInteger(stock)||stock<0){
+    showMessage("formMessage","Enter a valid price and a whole-number stock quantity.",true);return;
+  }
+  if(sweetDeal&&(!Number.isFinite(dealPrice)||dealPrice<0||dealPrice>=price)){
+    showMessage("formMessage","Sweet Deal price must be lower than regular price.",true);return;
+  }
+  const button=$("saveBtn");button.disabled=true;button.textContent="Saving...";
+  try{
+    let image=$("imageUrl").value.trim();
+    const file=$("imageFile").files[0];
+    if(file){
+      const fd=new FormData();fd.append("image",file);
+      const result=await api("/api/admin/upload",{method:"POST",body:fd});
+      image=result.image;
+    }
+    const body={
+      name:$("name").value.trim(),category:$("category").value,
+      price,stock,condition:$("condition").value,storage:$("storage").value.trim(),
+      color:$("color").value.trim(),image,description:$("description").value.trim(),
+      sweetDeal,dealPrice
+    };
+    const url=editingId?`/api/admin/products/${encodeURIComponent(editingId)}`:"/api/admin/products";
+    await api(url,{method:editingId?"PUT":"POST",body:JSON.stringify(body)});
+    resetForm();
+    await loadProducts();
+    showMessage("listMessage",editingId?"Product saved.":"Product published.");
+  }catch(error){showMessage("formMessage",error.message,true)}
+  finally{button.disabled=false;button.textContent=editingId?"Save changes":"Publish product"}
+});
+async function updateStock(id){
+  const input=$(`stock-${id}`);
+  if(!input)return;
+  const stock=Number(input.value);
+  if(!Number.isInteger(stock)||stock<0){showMessage("listMessage","Stock must be a whole number of zero or more.",true);return}
+  try{
+    await api(`/api/admin/products/${encodeURIComponent(id)}/stock`,{method:"PATCH",body:JSON.stringify({stock})});
+    await loadProducts();
+    showMessage("listMessage","Stock updated.");
+  }catch(error){showMessage("listMessage",error.message,true)}
+}
+async function deleteProduct(id){
+  const p=products.find(x=>String(x.id)===String(id));
+  if(!p||!confirm(`Delete "${p.name}" from the catalogue? This cannot be undone.`))return;
+  try{
+    await api(`/api/admin/products/${encodeURIComponent(id)}`,{method:"DELETE"});
+    if(String(editingId)===String(id))resetForm();
+    await loadProducts();
+    showMessage("listMessage","Product deleted.");
+  }catch(error){showMessage("listMessage",error.message,true)}
+}
+checkSession();
+</script>
+</body>
+</html>

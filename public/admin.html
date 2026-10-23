@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAVITAR Admin</title>
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:14px Arial;background:#f3f6fb;color:#142743}
+header{background:#062653;color:white;padding:20px 5%;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header a{color:white;text-decoration:none}
+main{max-width:1150px;margin:25px auto;padding:0 16px}
+.panel{background:white;padding:22px;border-radius:12px;box-shadow:0 3px 15px #0a24470b;margin-bottom:18px}
+h1,h2{margin-top:0}
+.hidden{display:none!important}
+input,select,textarea{width:100%;padding:11px;border:1px solid #d6e0eb;border-radius:6px;margin-top:6px}
+label{display:block;font-weight:bold;margin-bottom:13px}
+button{border:0;border-radius:6px;padding:11px 14px;cursor:pointer;font-weight:bold}
+.primary{background:#0865d8;color:white}
+.danger{background:#ffeded;color:#a52323}
+.neutral{background:#e8eef6;color:#173457}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{background:#edf4ff;border-radius:8px;padding:16px}
+.stat strong{font-size:25px;display:block;margin-top:7px;overflow-wrap:anywhere}
+.products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.item{border:1px solid #dfe7f1;border-radius:8px;padding:12px;min-width:0}
+.item img{width:100%;height:150px;object-fit:contain}
+.item p{color:#667a94}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.actions button{flex:1}
+#message,#formMessage{margin:10px 0;color:#a52a2a}
+.status{display:inline-block;padding:6px 9px;border-radius:20px;font-size:12px;font-weight:bold}
+.status.in{background:#e5f8ec;color:#18763b}
+.status.out{background:#ffeded;color:#a52323}
+.stat-note{color:#61758e;font-size:12px;margin-top:6px}
+@media(max-width:700px){
+ .grid,.stats{grid-template-columns:1fr 1fr}
+ .products{grid-template-columns:repeat(2,minmax(0,1fr))}
+ header{padding:16px}
+ .panel{padding:16px}
+}
+@media(max-width:440px){
+ .grid,.stats,.products{grid-template-columns:1fr}
+ .stat strong{font-size:23px}
+}
+</style>
+</head>
+
+<body>
+<header>
+  <div>
+    <b>SAVITAR GLOBAL ENTERPRISES</b>
+    <div>Admin Dashboard</div>
+  </div>
+  <a href="/">← View Store</a>
+</header>
+
+<main>
+  <section class="panel" id="loginPanel">
+    <h1>Admin Sign In</h1>
+    <p>Sign in to manage your product catalogue, stock and website visitors.</p>
+
+    <form id="loginForm">
+      <label>
+        Admin Password
+        <input id="password" type="password" required autocomplete="current-password">
+      </label>
+      <button class="primary" type="submit">Sign In</button>
+    </form>
+
+    <div id="message"></div>
+  </section>
+
+  <section id="dashboard" class="hidden">
+    <h1>Store Overview</h1>
+
+    <div class="stats">
+      <div class="stat">
+        Total products
+        <strong id="totalProducts">0</strong>
+      </div>
+
+      <div class="stat">
+        In stock
+        <strong id="availableProducts">0</strong>
+      </div>
+
+      <div class="stat">
+        Out of stock
+        <strong id="outProducts">0</strong>
+      </div>
+
+      <div class="stat">
+        Total visits
+        <strong id="totalVisits">0</strong>
+        <div class="stat-note">Recorded homepage loads</div>
+      </div>
+
+      <div class="stat">
+        Unique visitors
+        <strong id="uniqueVisitors">0</strong>
+        <div class="stat-note">Anonymous browsers seen</div>
+      </div>
+
+      <div class="stat">
+        Visits today
+        <strong id="visitsToday">0</strong>
+        <div class="stat-note">Nigeria time</div>
+      </div>
+
+      <div class="stat">
+        Visitors today
+        <strong id="uniqueVisitorsToday">0</strong>
+        <div class="stat-note">Distinct browsers today</div>
+      </div>
+    </div>
+
+    <section class="panel" style="margin-top:18px">
+      <h2 id="formTitle">Add a Product</h2>
+
+      <form id="productForm" enctype="multipart/form-data">
+        <input type="hidden" id="productId">
+
+        <div class="grid">
+          <label>
+            Product name
+            <input id="name" name="name" required placeholder="e.g. iPhone 15 Pro">
+          </label>
+
+          <label>
+            Category
+            <select id="category" name="category" required>
+              <option>iPhone</option>
+              <option>Samsung</option>
+              <option>Other Phones</option>
+              <option>iWatch</option>
+              <option>Gaming</option>
+              <option>Computers</option>
+              <option>Accessories</option>
+            </select>
+          </label>
+
+          <label>
+            Condition
+            <select id="condition" name="condition">
+              <option>Brand-new</option>
+              <option>Fairly Used</option>
+            </select>
+          </label>
+
+          <label>
+            Regular price (₦)
+            <input id="price" name="price" type="number" min="0" required>
+          </label>
+
+          <label>
+            Sweet Deals price (₦), optional
+            <input id="dealPrice" name="dealPrice" type="number" min="0" placeholder="Leave empty for no deal">
+          </label>
+
+          <label>
+            Quantity in stock
+            <input id="stock" name="stock" type="number" min="0" step="1" value="1" required>
+          </label>
+
+          <label>
+            Storage
+            <input id="storage" name="storage" placeholder="128GB, 256GB, 1TB">
+          </label>
+
+          <label>
+            Colour
+            <input id="color" name="color" placeholder="Black, Blue, Natural Titanium">
+          </label>
+        </div>
+
+        <label>
+          Product description
+          <textarea id="description" name="description" rows="3" placeholder="Describe the device and its condition"></textarea>
+        </label>
+
+        <label>
+          Product picture
+          <input id="image" name="image" type="file" accept="image/*">
+          <small id="imageHint">Choose a clear photo. Maximum 8MB.</small>
+        </label>
+
+        <div class="actions">
+          <button class="primary" type="submit" id="saveButton">Publish Product</button>
+          <button class="neutral" type="button" id="cancelEdit">Clear Form</button>
+          <button class="neutral" type="button" id="refresh">Refresh Products</button>
+          <button class="danger" type="button" id="logout">Sign Out</button>
+        </div>
+
+        <div id="formMessage"></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Manage Products</h2>
+      <p>Use the stock controls to stop customers ordering unavailable items. A quantity of zero marks a product as out of stock.</p>
+
+      <input id="productSearch" placeholder="Search products by name or category...">
+
+      <div class="products" id="productList" style="margin-top:16px"></div>
+    </section>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let products = [];
+let editingId = null;
+
+const money = n =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0
+  }).format(n || 0);
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+async function api(url, options = {}) {
+  const headers = options.body instanceof FormData
+    ? (options.headers || {})
+    : {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      };
+
+  const response = await fetch(url, {
+    ...options,
+    credentials: "same-origin",
+    headers
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed.");
+  }
+
+  return data;
+}
+
+async function checkSession() {
+  try {
+    const session = await api("/api/admin/session");
+    const loggedIn = Boolean(session.loggedIn);
+
+    $("loginPanel").classList.toggle("hidden", loggedIn);
+    $("dashboard").classList.toggle("hidden", !loggedIn);
+
+    if (loggedIn) {
+      await Promise.all([loadProducts(), loadStats()]);
+    }
+  } catch (error) {
+    $("message").textContent = error.message;
+  }
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  $("message").textContent = "";
+
+  try {
+    await api("/api/admin/login", {
+      method: "POST",
+      body: JSON.stringify({
+        password: $("password").value
+      })
+    });
+
+    $("password").value = "";
+    await checkSession();
+  } catch (error) {
+    $("message").textContent = error.message;
+  }
+});
+
+async function loadProducts() {
+  try {
+    products = await api("/api/products");
+    renderProducts();
+  } catch (error) {
+    $("formMessage").textContent = error.message;
+  }
+}
+
+async function loadStats() {
+  try {
+    const stats = await api("/api/admin/stats");
+
+    $("totalVisits").textContent =
+      Number(stats.totalVisits || 0).toLocaleString();
+
+    $("uniqueVisitors").textContent =
+      Number(stats.uniqueVisitors || 0).toLocaleString();
+
+    $("visitsToday").textContent =
+      Number(stats.visitsToday || 0).toLocaleString();
+
+    $("uniqueVisitorsToday").textContent =
+      Number(stats.uniqueVisitorsToday || 0).toLocaleString();
+  } catch (error) {
+    console.warn("Visitor statistics unavailable:", error.message);
+  }
+}
+
+function renderProducts() {
+  $("totalProducts").textContent = products.length;
+
+  $("availableProducts").textContent =
+    products.filter(p => Number(p.stock) > 0).length;
+
+  $("outProducts").textContent =
+    products.filter(p => Number(p.stock) <= 0).length;
+
+  const query = $("productSearch").value.toLowerCase().trim();
+
+  const filtered = products.filter(p =>
+    (String(p.name) + " " + String(p.category))
+      .toLowerCase()
+      .includes(query)
+  );
+
+  $("productList").innerHTML = filtered.length
+    ? filtered.map(p => {
+        const available = Number(p.stock) > 0;
+
+        return `
+          <article class="item">
+            ${
+              p.image
+                ? `<img src="${esc(p.image)}" alt="${esc(p.name)}">`
+                : `<div style="height:150px;display:grid;place-items:center;font-size:45px;color:#9baec5">▣</div>`
+            }
+
+            <h3>${esc(p.name)}</h3>
+
+            <p>${esc(p.category)} · ${esc(p.condition || "Brand-new")}</p>
+
+            <b>${money(
+              p.dealPrice != null && p.sweetDeal
+                ? p.dealPrice
+                : p.price
+            )}</b>
+
+            ${
+              p.dealPrice != null && p.sweetDeal
+                ? `<p>Regular price: ${money(p.price)}</p>`
+                : ""
+            }
+
+            <p>
+              Status:
+              <span class="status ${available ? "in" : "out"}">
+                ${available ? "IN STOCK" : "OUT OF STOCK"}
+              </span>
+            </p>
+
+            <p>Available quantity: <b>${Number(p.stock) || 0}</b></p>
+
+            <label>
+              Update quantity
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value="${Number(p.stock) || 0}"
+                data-stock-input="${esc(p.id)}"
+              >
+            </label>
+
+            <div class="actions">
+              <button class="primary" data-edit="${esc(p.id)}">Edit</button>
+
+              <button class="neutral" data-stock="${esc(p.id)}">Save Quantity</button>
+
+              <button
+                class="${available ? "danger" : "primary"}"
+                data-toggle-stock="${esc(p.id)}"
+              >
+                ${available ? "Mark Out of Stock" : "Mark In Stock"}
+              </button>
+
+              <button class="danger" data-delete="${esc(p.id)}">Delete</button>
+            </div>
+          </article>
+        `;
+      }).join("")
+    : "<p>No products found. Add your first product above.</p>";
+}
+
+function resetForm() {
+  editingId = null;
+  $("productForm").reset();
+  $("productId").value = "";
+  $("stock").value = 1;
+
+  $("formTitle").textContent = "Add a Product";
+  $("saveButton").textContent = "Publish Product";
+  $("imageHint").textContent =
+    "Choose a clear photo. Maximum 8MB.";
+}
+
+$("productForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  $("formMessage").textContent = "";
+
+  try {
+    const payload = {};
+
+    for (const key of [
+      "name",
+      "category",
+      "condition",
+      "price",
+      "dealPrice",
+      "stock",
+      "storage",
+      "color",
+      "description"
+    ]) {
+      payload[key] = $(key).value;
+    }
+
+    const file = $("image").files[0];
+
+    if (file) {
+      if (file.size > 8 * 1024 * 1024) {
+        throw new Error("Image must be 8MB or smaller.");
+      }
+
+      const imageForm = new FormData();
+      imageForm.append("image", file);
+
+      const uploaded = await api("/api/admin/upload", {
+        method: "POST",
+        body: imageForm
+      });
+
+      payload.image = uploaded.image;
+    }
+
+    const url = editingId
+      ? "/api/admin/products/" + encodeURIComponent(editingId)
+      : "/api/admin/products";
+
+    await api(url, {
+      method: editingId ? "PUT" : "POST",
+      body: JSON.stringify(payload)
+    });
+
+    $("formMessage").style.color = "green";
+    $("formMessage").textContent = editingId
+      ? "Product updated successfully."
+      : "Product published successfully.";
+
+    resetForm();
+    await loadProducts();
+  } catch (error) {
+    $("formMessage").style.color = "#a52323";
+    $("formMessage").textContent = error.message;
+  }
+});
+
+$("productList").addEventListener("click", async event => {
+  const editButton = event.target.closest("[data-edit]");
+  const stockButton = event.target.closest("[data-stock]");
+  const toggleButton = event.target.closest("[data-toggle-stock]");
+  const deleteButton = event.target.closest("[data-delete]");
+
+  // Edit product.
+  if (editButton) {
+    const product = products.find(
+      p => String(p.id) === editButton.dataset.edit
+    );
+
+    if (!product) return;
+
+    editingId = product.id;
+
+    for (const key of [
+      "name",
+      "category",
+      "condition",
+      "price",
+      "dealPrice",
+      "stock",
+      "storage",
+      "color",
+      "description"
+    ]) {
+      $(key).value = product[key] ?? "";
+    }
+
+    $("formTitle").textContent = "Edit Product";
+    $("saveButton").textContent = "Save Changes";
+
+    $("imageHint").textContent = product.image
+      ? "Current image stays unless you choose a new one."
+      : "No current image.";
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Save the quantity typed into the stock field.
+  if (stockButton) {
+    const id = stockButton.dataset.stock;
+    const field = document.querySelector(
+      `[data-stock-input="${CSS.escape(id)}"]`
+    );
+
+    const quantity = Number(field.value);
+
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      alert("Enter a whole number of zero or more.");
+      return;
+    }
+
+    try {
+      await api(
+        "/api/admin/products/" + encodeURIComponent(id) + "/stock",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ stock: quantity })
+        }
+      );
+
+      await loadProducts();
+      $("formMessage").style.color = "green";
+      $("formMessage").textContent = "Stock quantity updated.";
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  // One-click in-stock/out-of-stock control.
+  if (toggleButton) {
+    const product = products.find(
+      p => String(p.id) === toggleButton.dataset.toggleStock
+    );
+
+    if (!product) return;
+
+    let quantity = 0;
+
+    if (Number(product.stock) <= 0) {
+      const answer = prompt(
+        "Enter the quantity available for " + product.name + ":",
+        "1"
+      );
+
+      if (answer === null) return;
+
+      quantity = Number(answer);
+
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        alert("Enter a whole number greater than zero.");
+        return;
+      }
+    } else {
+      const confirmed = confirm(
+        "Mark " + product.name + " as out of stock?"
+      );
+
+      if (!confirmed) return;
+    }
+
+    try {
+      await api(
+        "/api/admin/products/" + encodeURIComponent(product.id) + "/stock",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ stock: quantity })
+        }
+      );
+
+      await loadProducts();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  // Delete product.
+  if (deleteButton) {
+    const product = products.find(
+      p => String(p.id) === deleteButton.dataset.delete
+    );
+
+    if (
+      !product ||
+      !confirm("Permanently delete " + product.name + "?")
+    ) {
+      return;
+    }
+
+    try {
+      await api(
+        "/api/admin/products/" + encodeURIComponent(product.id),
+        { method: "DELETE" }
+      );
+
+      await loadProducts();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+});
+
+$("cancelEdit").onclick = resetForm;
+$("refresh").onclick = async () => {
+  await Promise.all([loadProducts(), loadStats()]);
+};
+
+$("productSearch").addEventListener("input", renderProducts);
+
+$("logout").onclick = async () => {
+  try {
+    await api("/api/admin/logout", { method: "POST" });
+    $("dashboard").classList.add("hidden");
+    $("loginPanel").classList.remove("hidden");
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+checkSession();
+</script>
+</body>
+</html>
