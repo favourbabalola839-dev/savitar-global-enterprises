@@ -1,3 +1,6 @@
+
+"use strict";
+
 require("dotenv").config();
 
 const express = require("express");
@@ -10,85 +13,41 @@ const crypto = require("crypto");
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-const DATA_DIR = path.join(__dirname, "data");
-const DATA_FILE = path.join(DATA_DIR, "products.json");
-const VISITOR_FILE = path.join(DATA_DIR, "visitor-stats.json");
-const PUBLIC_DIR = path.join(__dirname, "public");
+const ROOT_DIR = __dirname;
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+const DATA_DIR = path.join(ROOT_DIR, "data");
 const UPLOAD_DIR = path.join(PUBLIC_DIR, "uploads");
-const LEGACY_FILE = path.join(__dirname, "product.json");
 
-// Create folders safely.
-if (fs.existsSync(DATA_DIR) && !fs.statSync(DATA_DIR).isDirectory()) {
-  throw new Error(
-    `"data" exists as a file, not a folder: ${DATA_DIR}`
-  );
-}
+const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
+const VISITORS_FILE = path.join(DATA_DIR, "visitor-stats.json");
+const LEGACY_PRODUCTS_FILE = path.join(ROOT_DIR, "product.json");
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-// Preserve existing products.
-if (!fs.existsSync(DATA_FILE)) {
-  let initialData = "[]";
-
-  if (fs.existsSync(LEGACY_FILE)) {
-    try {
-      const legacy = JSON.parse(
-        fs.readFileSync(LEGACY_FILE, "utf8")
-      );
-
-      if (Array.isArray(legacy)) {
-        initialData = JSON.stringify(legacy, null, 2);
-      }
-    } catch (error) {
-      console.error(
-        "Could not migrate old product.json:",
-        error.message
-      );
-    }
-  }
-
-  fs.writeFileSync(DATA_FILE, initialData, "utf8");
-}
-
-// Persistent visitor statistics.
-if (!fs.existsSync(VISITOR_FILE)) {
-  fs.writeFileSync(
-    VISITOR_FILE,
-    JSON.stringify({
-      totalVisits: 0,
-      visitors: {},
-      daily: {}
-    }, null, 2),
-    "utf8"
-  );
+for (const directory of [PUBLIC_DIR, DATA_DIR, UPLOAD_DIR]) {
+  fs.mkdirSync(directory, { recursive: true });
 }
 
 if (!process.env.ADMIN_PASSWORD) {
-  console.error("Missing ADMIN_PASSWORD in .env");
+  console.error("ERROR: Set ADMIN_PASSWORD in your environment variables.");
   process.exit(1);
 }
 
-if (
-  !process.env.SESSION_SECRET ||
-  process.env.SESSION_SECRET ===
-    "replace-this-with-a-long-random-secret"
-) {
-  console.warn(
-    "WARNING: Set a long, random SESSION_SECRET in .env before deployment."
-  );
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
+  console.error("ERROR: Set SESSION_SECRET to a random string of at least 32 characters.");
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV === "production") {
+  // Required when running behind Render's HTTPS proxy.
+  app.set("trust proxy", 1);
 }
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use(session({
   name: "savitar.sid",
-  secret:
-    process.env.SESSION_SECRET ||
-    crypto.randomBytes(48).toString("hex"),
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -99,39 +58,190 @@ app.use(session({
   }
 }));
 
-// ------------------------------
-// PRODUCT STORAGE
-// ------------------------------
+// ---------- General helpers ----------
 
-function readProducts() {
-  const products = JSON.parse(
-    fs.readFileSync(DATA_FILE, "utf8")
-  );
+function readJson(file, fallback) {
+  try {
+    if (!fs.existsSync(file)) return fallback;
+    const contents = fs.readFileSync(file, "utf8");
+    return contents.trim() ? JSON.parse(contents) : fallback;
+  } catch (error) {
+    console.error(`Could not read ${file}:`, error.message);
+    return fallback;
+  }
+}
+
+function writeJson(file, value) {
+  const temporaryFile = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(value, null, 2), "utf8");
+  fs.renameSync(temporaryFile, file);
+}
+
+function makeId() {
+  return crypto.randomUUID();
+}
+
+function text(value, maxLength = 5000) {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function positiveNumber(value, fieldName, allowZero = true) {
+  if (value === "" || value === null || value === undefined) {
+    throw new Error(`${fieldName} is required.`);
+  }
+
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0 || (!allowZero && number === 0)) {
+    throw new Error(`${fieldName} must be a valid non-negative number.`);
+  }
+  return number;
+}
+
+function wholeNumber(value, fieldName = "Stock") {
+  const number = positiveNumber(value, fieldName);
+  if (!Number.isInteger(number)) {
+    throw new Error(`${fieldName} must be a whole number.`);
+  }
+  return number;
+}
+
+function loadProducts() {
+  let products = readJson(PRODUCTS_FILE, null);
 
   if (!Array.isArray(products)) {
-    throw new Error("Product data must be a JSON array.");
+    // Migrate the older product.json file without deleting it.
+    const legacy = readJson(LEGACY_PRODUCTS_FILE, []);
+    products = Array.isArray(legacy) ? legacy : [];
+    writeJson(PRODUCTS_FILE, products);
   }
 
   return products;
 }
 
 function saveProducts(products) {
-  const tempFile = `${DATA_FILE}.tmp`;
-
-  fs.writeFileSync(
-    tempFile,
-    JSON.stringify(products, null, 2),
-    "utf8"
-  );
-
-  fs.renameSync(tempFile, DATA_FILE);
+  writeJson(PRODUCTS_FILE, products);
 }
 
-// ------------------------------
-// VISITOR ANALYTICS
-// ------------------------------
+function cleanProduct(body, existing = {}) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("Invalid product data.");
+  }
 
-function getTodayKey() {
+  const name = text(body.name ?? existing.name, 160);
+  const category = text(body.category ?? existing.category, 100);
+
+  if (!name) throw new Error("Product name is required.");
+  if (!category) throw new Error("Product category is required.");
+
+  const price = positiveNumber(body.price ?? existing.price, "Price");
+  const stock = wholeNumber(body.stock ?? existing.stock, "Stock");
+
+  const dealInput = Object.prototype.hasOwnProperty.call(body, "dealPrice")
+    ? body.dealPrice
+    : existing.dealPrice;
+
+  const dealPrice = dealInput === "" || dealInput === null || dealInput === undefined
+    ? null
+    : positiveNumber(dealInput, "Deal price");
+
+  const sweetDeal = Object.prototype.hasOwnProperty.call(body, "sweetDeal")
+    ? Boolean(body.sweetDeal)
+    : Boolean(existing.sweetDeal);
+
+  if (sweetDeal && (dealPrice === null || dealPrice <= 0)) {
+    throw new Error("A Sweet Deal requires a deal price greater than zero.");
+  }
+
+  const image = text(body.image ?? existing.image, 2000);
+  if (image && !image.startsWith("/uploads/")) {
+    let parsed;
+    try {
+      parsed = new URL(image);
+    } catch (_) {
+      throw new Error("Image must be a valid HTTP(S) URL or an uploaded image path.");
+    }
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("Image URL must use HTTP or HTTPS.");
+    }
+  }
+
+  const images = Array.isArray(existing.images) ? existing.images : [];
+  const result = {
+    ...existing,
+    id: existing.id || makeId(),
+    name,
+    category,
+    condition: text(body.condition ?? existing.condition ?? "New", 60),
+    price,
+    stock,
+    dealPrice,
+    sweetDeal,
+    storage: text(body.storage ?? existing.storage, 80),
+    color: text(body.color ?? existing.color, 80),
+    description: text(body.description ?? existing.description, 5000),
+    image: image || existing.image || "",
+    images,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!existing.createdAt) {
+    result.createdAt = new Date().toISOString();
+  }
+
+  return result;
+}
+
+function sendError(res, error, status = 400) {
+  return res.status(status).json({
+    ok: false,
+    error: error.message || "Something went wrong."
+  });
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session || req.session.isAdmin !== true) {
+    return res.status(401).json({
+      ok: false,
+      error: "Your admin session has expired. Please sign in again."
+    });
+  }
+  next();
+}
+
+// ---------- Image uploads ----------
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, callback) => callback(null, UPLOAD_DIR),
+  filename: (_req, file, callback) => {
+    const extension = path.extname(file.originalname || "").toLowerCase();
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+
+    if (!allowedExtensions.includes(extension)) {
+      return callback(new Error("Use a JPG, JPEG, PNG, WebP or GIF image."));
+    }
+
+    callback(null, `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${extension}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: (_req, file, callback) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return callback(new Error("Only JPG, PNG, WebP and GIF images are allowed."));
+    }
+    callback(null, true);
+  }
+});
+
+// ---------- Visitor statistics ----------
+
+function todayInLagos() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Africa/Lagos",
     year: "numeric",
@@ -141,578 +251,265 @@ function getTodayKey() {
 }
 
 function readVisitorStats() {
-  try {
-    const stats = JSON.parse(
-      fs.readFileSync(VISITOR_FILE, "utf8")
-    );
-
-    return {
-      totalVisits: Number(stats.totalVisits) || 0,
-      visitors: stats.visitors || {},
-      daily: stats.daily || {}
-    };
-  } catch (error) {
-    console.error(
-      "Unable to read visitor statistics:",
-      error.message
-    );
-
-    return {
-      totalVisits: 0,
-      visitors: {},
-      daily: {}
-    };
-  }
+  const data = readJson(VISITORS_FILE, {});
+  return {
+    totalVisits: Number(data.totalVisits || 0),
+    daily: data.daily && typeof data.daily === "object" ? data.daily : {},
+    seenVisitors: data.seenVisitors && typeof data.seenVisitors === "object"
+      ? data.seenVisitors : {}
+  };
 }
 
-function saveVisitorStats(stats) {
-  const tempFile = `${VISITOR_FILE}.tmp`;
-
-  fs.writeFileSync(
-    tempFile,
-    JSON.stringify(stats, null, 2),
-    "utf8"
-  );
-
-  fs.renameSync(tempFile, VISITOR_FILE);
-}
-
-function getVisitorId(req, res) {
-  const cookie = (req.headers.cookie || "").match(
-    /(?:^|;\s*)savitar_visitor=([a-f0-9]{32})/
-  );
-
-  if (cookie) {
-    return cookie[1];
-  }
-
-  const visitorId = crypto.randomBytes(16).toString("hex");
-
-  res.cookie("savitar_visitor", visitorId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 365 * 24 * 60 * 60 * 1000,
-    path: "/"
-  });
-
-  return visitorId;
-}
-
-// Count homepage loads only, not images, CSS, scripts or API polling.
-app.use((req, res, next) => {
-  if (
-    req.method !== "GET" ||
-    (req.path !== "/" && req.path !== "/index.html")
-  ) {
-    return next();
-  }
+function recordHomepageVisit(req, res, next) {
+  if (req.path !== "/" || req.method !== "GET") return next();
 
   try {
-    const visitorId = getVisitorId(req, res);
+    let visitorId = req.cookiesVisitorId;
+
+    // Use a basic cookie parser so no additional cookie-parser dependency is needed.
+    const cookies = Object.fromEntries(
+      String(req.headers.cookie || "")
+        .split(";")
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(part => {
+          const separator = part.indexOf("=");
+          return separator < 0
+            ? [part, ""]
+            : [part.slice(0, separator), decodeURIComponent(part.slice(separator + 1))];
+        })
+    );
+
+    visitorId = cookies.savitar_visitor;
+
+    if (!visitorId || !/^[a-f0-9-]{20,80}$/i.test(visitorId)) {
+      visitorId = makeId();
+      res.cookie("savitar_visitor", visitorId, {
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production"
+      });
+    }
+
     const stats = readVisitorStats();
-    const today = getTodayKey();
-    const now = new Date().toISOString();
-
-    if (!stats.daily[today]) {
-      stats.daily[today] = {
-        visits: 0,
-        visitorIds: []
-      };
-    }
-
-    // Every homepage load counts as a visit.
+    const day = todayInLagos();
+    stats.daily[day] = Number(stats.daily[day] || 0) + 1;
     stats.totalVisits += 1;
-    stats.daily[today].visits += 1;
 
-    // Count each anonymous browser once per day.
-    if (
-      !stats.daily[today].visitorIds.includes(visitorId)
-    ) {
-      stats.daily[today].visitorIds.push(visitorId);
+    // Unique visitor counts are approximate and kept for recent days only.
+    stats.seenVisitors[`${day}:${visitorId}`] = true;
+    const recentKeys = Object.keys(stats.seenVisitors);
+    if (recentKeys.length > 20000) {
+      for (const key of recentKeys.slice(0, recentKeys.length - 20000)) {
+        delete stats.seenVisitors[key];
+      }
     }
 
-    if (!stats.visitors[visitorId]) {
-      stats.visitors[visitorId] = {
-        firstSeen: now,
-        lastSeen: now,
-        visitCount: 0
-      };
-    }
-
-    stats.visitors[visitorId].lastSeen = now;
-    stats.visitors[visitorId].visitCount += 1;
-
-    saveVisitorStats(stats);
+    writeJson(VISITORS_FILE, stats);
   } catch (error) {
-    // Analytics errors must not stop the shop from opening.
-    console.error(
-      "Visitor statistics error:",
-      error.message
-    );
+    console.error("Visitor statistics error:", error.message);
   }
 
   next();
-});
-
-// ------------------------------
-// STATIC WEBSITE FILES
-// ------------------------------
-
-app.use(express.static(PUBLIC_DIR));
-
-// ------------------------------
-// IMAGE UPLOADS
-// ------------------------------
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-
-    cb(
-      null,
-      `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`
-    );
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 8 * 1024 * 1024 },
-
-  fileFilter: (_req, file, cb) => {
-    if (
-      !file.mimetype ||
-      !file.mimetype.startsWith("image/")
-    ) {
-      return cb(new Error("Please upload an image file."));
-    }
-
-    cb(null, true);
-  }
-});
-
-// ------------------------------
-// ADMIN AND PRODUCT HELPERS
-// ------------------------------
-
-function requireAdmin(req, res, next) {
-  if (req.session && req.session.isAdmin) {
-    return next();
-  }
-
-  return res.status(401).json({
-    error: "Please log in as admin first."
-  });
 }
 
-function isTrue(value) {
-  return (
-    value === true ||
-    value === 1 ||
-    ["true", "1", "on", "yes"].includes(
-      String(value).toLowerCase()
-    )
-  );
-}
-
-function cleanProduct(body, existing = {}) {
-  const name = String(
-    body.name ?? existing.name ?? ""
-  ).trim();
-
-  const category = String(
-    body.category ?? existing.category ?? ""
-  ).trim();
-
-  const price = Number(
-    body.price ?? existing.price
-  );
-
-  const stock = Number(
-    body.stock ?? existing.stock ?? 0
-  );
-
-  if (!name) {
-    throw new Error("Product name is required.");
-  }
-
-  if (!category) {
-    throw new Error("Choose a product category.");
-  }
-
-  if (!Number.isFinite(price) || price < 0) {
-    throw new Error("Enter a valid price.");
-  }
-
-  if (!Number.isInteger(stock) || stock < 0) {
-    throw new Error(
-      "Stock must be a whole number of zero or more."
-    );
-  }
-
-  const sweetDeal =
-    body.sweetDeal === undefined
-      ? Boolean(existing.sweetDeal)
-      : isTrue(body.sweetDeal);
-
-  let dealPrice = null;
-
-  if (sweetDeal) {
-    dealPrice = Number(
-      body.dealPrice ?? existing.dealPrice
-    );
-
-    if (
-      !Number.isFinite(dealPrice) ||
-      dealPrice < 0 ||
-      dealPrice >= price
-    ) {
-      throw new Error(
-        "A Sweet Deal price must be lower than the regular price."
-      );
-    }
-  }
-
-  const image = String(
-    body.image ??
-    body.imageUrl ??
-    existing.image ??
-    existing.imageUrl ??
-    ""
-  ).trim();
-
-  return {
-    ...existing,
-    name,
-    category,
-    price,
-    stock,
-    description: String(
-      body.description ?? existing.description ?? ""
-    ).trim(),
-    image,
-    condition: String(
-      body.condition ?? existing.condition ?? "Brand-new"
-    ),
-    storage: String(
-      body.storage ?? existing.storage ?? ""
-    ).trim(),
-    color: String(
-      body.color ?? existing.color ?? ""
-    ).trim(),
-    sweetDeal,
-    dealPrice,
-    inStock: stock > 0,
-    updatedAt: new Date().toISOString()
-  };
-}
-
-function publicProduct(product) {
-  return {
-    ...product,
-    image: product.image || product.imageUrl || "",
-    inStock: Number(product.stock) > 0
-  };
-}
-
-// ------------------------------
-// PUBLIC API
-// ------------------------------
+// ---------- Routes ----------
 
 app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
-    service: "SAVITAR GLOBAL ENTERPRISES"
-  });
+  res.json({ ok: true, service: "Savitar Global Enterprises", time: new Date().toISOString() });
 });
 
+// Public catalogue endpoint.
 app.get("/api/products", (_req, res) => {
   try {
-    res.set("Cache-Control", "no-store");
-
-    res.json(
-      readProducts().map(publicProduct)
-    );
+    res.json(loadProducts());
   } catch (error) {
-    console.error("Unable to read catalogue:", error);
-
-    res.status(500).json({
-      error: "Unable to load products. Check data/products.json."
-    });
+    sendError(res, error, 500);
   }
 });
 
-// ------------------------------
-// ADMIN SESSION AND STATISTICS
-// ------------------------------
-
+// Check the current admin session.
 app.get("/api/admin/session", (req, res) => {
-  res.json({
-    loggedIn: Boolean(req.session && req.session.isAdmin)
-  });
+  res.json({ loggedIn: Boolean(req.session && req.session.isAdmin === true) });
 });
 
-app.get("/api/admin/stats", requireAdmin, (_req, res) => {
-  try {
-    const stats = readVisitorStats();
-    const today = getTodayKey();
-
-    const todayStats = stats.daily[today] || {
-      visits: 0,
-      visitorIds: []
-    };
-
-    res.set("Cache-Control", "no-store");
-
-    res.json({
-      totalVisits: stats.totalVisits,
-      uniqueVisitors: Object.keys(stats.visitors).length,
-      visitsToday: todayStats.visits,
-      uniqueVisitorsToday: todayStats.visitorIds.length
-    });
-  } catch (error) {
-    console.error("Unable to load visitor statistics:", error);
-
-    res.status(500).json({
-      error: "Unable to load visitor statistics."
-    });
-  }
-});
-
-// ------------------------------
-// ADMIN LOGIN AND LOGOUT
-// ------------------------------
-
+// Login.
 app.post("/api/admin/login", (req, res, next) => {
-  const password = String(req.body.password || "");
+  const suppliedPassword = String(req.body?.password ?? "");
 
-  if (password !== process.env.ADMIN_PASSWORD) {
+  if (!suppliedPassword || suppliedPassword !== process.env.ADMIN_PASSWORD) {
     return res.status(401).json({
+      ok: false,
       error: "Incorrect admin password."
     });
   }
 
-  req.session.regenerate((error) => {
+  req.session.regenerate(error => {
     if (error) return next(error);
 
     req.session.isAdmin = true;
+    req.session.loginAt = new Date().toISOString();
 
-    req.session.save((saveError) => {
+    req.session.save(saveError => {
       if (saveError) return next(saveError);
 
-      res.json({
-        ok: true,
-        message: "Admin login successful."
-      });
+      res.json({ ok: true, message: "Admin login successful." });
     });
   });
 });
 
+// Logout.
 app.post("/api/admin/logout", (req, res, next) => {
-  req.session.destroy((error) => {
+  if (!req.session) return res.json({ ok: true });
+
+  req.session.destroy(error => {
     if (error) return next(error);
-
-    res.clearCookie("savitar.sid");
-
-    res.json({ ok: true });
+    res.clearCookie("savitar.sid", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production"
+    });
+    res.json({ ok: true, message: "Logged out." });
   });
 });
 
-// ------------------------------
-// ADMIN IMAGE UPLOAD
-// ------------------------------
-
-app.post(
-  "/api/admin/upload",
-  requireAdmin,
-  upload.single("image"),
-  (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({
-        error: "Choose an image to upload."
-      });
-    }
-
+// Admin visitor stats.
+app.get("/api/admin/stats", requireAdmin, (_req, res) => {
+  try {
+    const stats = readVisitorStats();
+    const today = todayInLagos();
     res.json({
-      image: `/uploads/${req.file.filename}`
+      ok: true,
+      visitorsToday: Number(stats.daily[today] || 0),
+      totalVisits: Number(stats.totalVisits || 0)
     });
+  } catch (error) {
+    sendError(res, error, 500);
   }
-);
+});
 
-// ------------------------------
-// ADD PRODUCT
-// ------------------------------
+// Upload an image.
+app.post("/api/admin/upload", requireAdmin, upload.single("image"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: "Choose an image to upload." });
+  }
 
+  res.json({
+    ok: true,
+    image: `/uploads/${req.file.filename}`,
+    url: `/uploads/${req.file.filename}`,
+    path: `/uploads/${req.file.filename}`
+  });
+});
+
+// Add product.
 app.post("/api/admin/products", requireAdmin, (req, res) => {
   try {
-    const products = readProducts();
+    const products = loadProducts();
     const product = cleanProduct(req.body);
-
-    product.id = `sav-${crypto.randomBytes(6).toString("hex")}`;
-    product.createdAt = new Date().toISOString();
-
     products.unshift(product);
     saveProducts(products);
-
-    res.status(201).json(publicProduct(product));
+    res.status(201).json({ ok: true, product, message: "Product added." });
   } catch (error) {
-    res.status(400).json({
-      error: error.message || "Unable to save product."
-    });
+    sendError(res, error);
   }
 });
 
-// ------------------------------
-// EDIT PRODUCT
-// ------------------------------
-
+// Update product.
 app.put("/api/admin/products/:id", requireAdmin, (req, res) => {
   try {
-    const products = readProducts();
-
+    const products = loadProducts();
     const index = products.findIndex(
-      p => String(p.id) === req.params.id
+      item => String(item.id) === String(req.params.id)
     );
 
-    if (index === -1) {
-      return res.status(404).json({
-        error: "Product not found."
-      });
+    if (index < 0) {
+      return res.status(404).json({ ok: false, error: "Product not found." });
     }
 
-    const updated = cleanProduct(
-      req.body,
-      products[index]
+    products[index] = cleanProduct(req.body, products[index]);
+    saveProducts(products);
+    res.json({ ok: true, product: products[index], message: "Product updated." });
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+// Update stock only.
+app.patch("/api/admin/products/:id/stock", requireAdmin, (req, res) => {
+  try {
+    const products = loadProducts();
+    const product = products.find(
+      item => String(item.id) === String(req.params.id)
     );
 
-    updated.id = products[index].id;
-    updated.createdAt = products[index].createdAt || null;
+    if (!product) {
+      return res.status(404).json({ ok: false, error: "Product not found." });
+    }
 
-    products[index] = updated;
+    product.stock = wholeNumber(req.body?.stock, "Stock");
+    product.updatedAt = new Date().toISOString();
     saveProducts(products);
 
-    res.json(publicProduct(updated));
+    res.json({ ok: true, product, message: "Stock updated." });
   } catch (error) {
-    res.status(400).json({
-      error: error.message || "Unable to update product."
-    });
+    sendError(res, error);
   }
 });
 
-// ------------------------------
-// UPDATE STOCK
-// ------------------------------
+// Delete product.
+app.delete("/api/admin/products/:id", requireAdmin, (req, res) => {
+  try {
+    const products = loadProducts();
+    const index = products.findIndex(
+      item => String(item.id) === String(req.params.id)
+    );
 
-app.patch(
-  "/api/admin/products/:id/stock",
-  requireAdmin,
-  (req, res) => {
-    try {
-      const stock = Number(req.body.stock);
-
-      if (!Number.isInteger(stock) || stock < 0) {
-        return res.status(400).json({
-          error: "Stock must be a whole number of zero or more."
-        });
-      }
-
-      const products = readProducts();
-
-      const product = products.find(
-        p => String(p.id) === req.params.id
-      );
-
-      if (!product) {
-        return res.status(404).json({
-          error: "Product not found."
-        });
-      }
-
-      product.stock = stock;
-      product.inStock = stock > 0;
-      product.updatedAt = new Date().toISOString();
-
-      saveProducts(products);
-
-      res.json(publicProduct(product));
-    } catch (error) {
-      res.status(500).json({
-        error: error.message || "Unable to update stock."
-      });
+    if (index < 0) {
+      return res.status(404).json({ ok: false, error: "Product not found." });
     }
+
+    const [removed] = products.splice(index, 1);
+    saveProducts(products);
+    res.json({ ok: true, deleted: removed.id, message: "Product deleted." });
+  } catch (error) {
+    sendError(res, error, 500);
   }
-);
+});
 
-// ------------------------------
-// DELETE PRODUCT
-// ------------------------------
+// Serve public files and the storefront.
+app.use(recordHomepageVisit);
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ["html"],
+  index: "index.html"
+}));
 
-app.delete(
-  "/api/admin/products/:id",
-  requireAdmin,
-  (req, res) => {
-    try {
-      const products = readProducts();
+// Friendly admin URL.
+app.get("/admin", (_req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, "admin.html"));
+});
 
-      const remaining = products.filter(
-        p => String(p.id) !== req.params.id
-      );
-
-      if (remaining.length === products.length) {
-        return res.status(404).json({
-          error: "Product not found."
-        });
-      }
-
-      saveProducts(remaining);
-
-      res.json({
-        ok: true,
-        message: "Product deleted."
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: error.message || "Unable to delete product."
-      });
-    }
-  }
-);
-
-// ------------------------------
-// ERROR HANDLER
-// ------------------------------
-
+// Upload middleware and JSON errors.
 app.use((error, _req, res, _next) => {
-  console.error(error);
+  console.error("Request error:", error.message);
 
-  if (
-    error instanceof multer.MulterError &&
-    error.code === "LIMIT_FILE_SIZE"
-  ) {
-    return res.status(400).json({
-      error: "Image must be 8MB or smaller."
-    });
+  if (error instanceof multer.MulterError) {
+    const message = error.code === "LIMIT_FILE_SIZE"
+      ? "Image is too large. Maximum size is 5 MB."
+      : error.message;
+    return res.status(400).json({ ok: false, error: message });
   }
 
-  res.status(400).json({
-    error: error.message || "Request failed."
-  });
-});
+  if (error.message && /image|file/i.test(error.message)) {
+    return res.status(400).json({ ok: false, error: error.message });
+  }
 
-// ------------------------------
-// START SERVER
-// ------------------------------
+  res.status(500).json({ ok: false, error: "A server error occurred." });
+});
 
 app.listen(PORT, () => {
-  console.log(
-    `SAVITAR GLOBAL ENTERPRISES running at http://localhost:${PORT}`
-  );
-  console.log("Storefront: /");
-  console.log("Admin dashboard: /admin.html");
-  console.log(`Product count: ${readProducts().length}`);
+  console.log(`Savitar Global Enterprises running on port ${PORT}`);
+  console.log(`Admin page: /admin.html`);
+  console.log(`Health check: /api/health`);
 });
