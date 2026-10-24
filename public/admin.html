@@ -271,7 +271,6 @@ async function checkSession() {
   }
 }
 
-
 $("loginForm").addEventListener("submit", async event => {
   event.preventDefault();
 
@@ -291,26 +290,27 @@ $("loginForm").addEventListener("submit", async event => {
       throw new Error(result.message || "Login failed.");
     }
 
+    // Confirm the server actually created the admin session.
+    const session = await api("/api/admin/session");
+
+    if (!session.loggedIn) {
+      throw new Error(
+        "The password was accepted, but the admin session was not saved. The server.js login/session code needs fixing."
+      );
+    }
+
     $("password").value = "";
     message.textContent = "";
-
-    // Show the dashboard immediately after successful login.
     $("loginPanel").classList.add("hidden");
     $("dashboard").classList.remove("hidden");
 
-    // Load the store data.
     await Promise.all([loadProducts(), loadStats()]);
   } catch (error) {
     message.textContent = error.message || "Unable to sign in.";
   }
 });
-
-    $("password").value = "";
-    await checkSession();
-  } catch (error) {
-    $("message").textContent = error.message;
-  }
-});
+$("password").value = "";
+await checkSession();});
 
 async function loadProducts() {
   try {
