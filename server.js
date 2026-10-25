@@ -9,6 +9,7 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -17,29 +18,41 @@ const ROOT_DIR = __dirname;
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const DATA_DIR = path.join(ROOT_DIR, "data");
 const UPLOAD_DIR = path.join(PUBLIC_DIR, "uploads");
-
 const PRODUCTS_FILE = path.join(DATA_DIR, "products.json");
 const VISITORS_FILE = path.join(DATA_DIR, "visitor-stats.json");
 const LEGACY_PRODUCTS_FILE = path.join(ROOT_DIR, "product.json");
 
-for (const directory of [PUBLIC_DIR, DATA_DIR, UPLOAD_DIR]) {
-  fs.mkdirSync(directory, { recursive: true });
+for (const dir of [PUBLIC_DIR, DATA_DIR, UPLOAD_DIR]) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error("ERROR: DATABASE_URL is missing.");
+  process.exit(1);
 }
 
 if (!process.env.ADMIN_PASSWORD) {
-  console.error("ERROR: Set ADMIN_PASSWORD in your environment variables.");
+  console.error("ERROR: Set ADMIN_PASSWORD in Render.");
   process.exit(1);
 }
 
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32) {
-  console.error("ERROR: Set SESSION_SECRET to a random string of at least 32 characters.");
+  console.error("ERROR: SESSION_SECRET must be at least 32 characters.");
   process.exit(1);
 }
 
 if (process.env.NODE_ENV === "production") {
-  // Required when running behind Render's HTTPS proxy.
   app.set("trust proxy", 1);
 }
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production"
+    ? { rejectUnauthorized: false }
+    : undefined,
+  max: 5,
+  connectionTimeoutMillis: 10000
+});
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
@@ -58,24 +71,7 @@ app.use(session({
   }
 }));
 
-// ---------- General helpers ----------
-
-function readJson(file, fallback) {
-  try {
-    if (!fs.existsSync(file)) return fallback;
-    const contents = fs.readFileSync(file, "utf8");
-    return contents.trim() ? JSON.parse(contents) : fallback;
-  } catch (error) {
-    console.error(`Could not read ${file}:`, error.message);
-    return fallback;
-  }
-}
-
-function writeJson(file, value) {
-  const temporaryFile = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporaryFile, JSON.stringify(value, null, 2), "utf8");
-  fs.renameSync(temporaryFile, file);
-}
+// ---------- Helpers ----------
 
 function makeId() {
   return crypto.randomUUID();
@@ -91,35 +87,42 @@ function positiveNumber(value, fieldName, allowZero = true) {
   }
 
   const number = Number(value);
-  if (!Number.isFinite(number) || number < 0 || (!allowZero && number === 0)) {
+
+  if (!Number.isFinite(number) ||
+      number < 0 ||
+      (!allowZero && number === 0)) {
     throw new Error(`${fieldName} must be a valid non-negative number.`);
   }
+
   return number;
 }
 
 function wholeNumber(value, fieldName = "Stock") {
   const number = positiveNumber(value, fieldName);
+
   if (!Number.isInteger(number)) {
     throw new Error(`${fieldName} must be a whole number.`);
   }
+
   return number;
 }
 
-function loadProducts() {
-  let products = readJson(PRODUCTS_FILE, null);
+function readJson(file, fallback) {
+  try {
+    if (!fs.existsSync(file)) return fallback;
 
-  if (!Array.isArray(products)) {
-    // Migrate the older product.json file without deleting it.
-    const legacy = readJson(LEGACY_PRODUCTS_FILE, []);
-    products = Array.isArray(legacy) ? legacy : [];
-    writeJson(PRODUCTS_FILE, products);
+    const contents = fs.readFileSync(file, "utf8");
+    return contents.trim() ? JSON.parse(contents) : fallback;
+  } catch (error) {
+    console.error(`Could not read ${file}:`, error.message);
+    return fallback;
   }
-
-  return products;
 }
 
-function saveProducts(products) {
-  writeJson(PRODUCTS_FILE, products);
+function writeJson(file, value) {
+  const temporaryFile = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temporaryFile, JSON.stringify(value, null, 2), "utf8");
+  fs.renameSync(temporaryFile, file);
 }
 
 function cleanProduct(body, existing = {}) {
@@ -140,12 +143,13 @@ function cleanProduct(body, existing = {}) {
     ? body.dealPrice
     : existing.dealPrice;
 
-  const dealPrice = dealInput === "" || dealInput === null || dealInput === undefined
-    ? null
-    : positiveNumber(dealInput, "Deal price");
+  const dealPrice =
+    dealInput === "" || dealInput === null || dealInput === undefined
+      ? null
+      : positiveNumber(dealInput, "Deal price");
 
   const sweetDeal = Object.prototype.hasOwnProperty.call(body, "sweetDeal")
-    ? Boolean(body.sweetDeal)
+    ? body.sweetDeal === true || body.sweetDeal === "true"
     : Boolean(existing.sweetDeal);
 
   if (sweetDeal && (dealPrice === null || dealPrice <= 0)) {
@@ -153,19 +157,21 @@ function cleanProduct(body, existing = {}) {
   }
 
   const image = text(body.image ?? existing.image, 2000);
+
   if (image && !image.startsWith("/uploads/")) {
     let parsed;
+
     try {
       parsed = new URL(image);
     } catch (_) {
-      throw new Error("Image must be a valid HTTP(S) URL or an uploaded image path.");
+      throw new Error("Image must be a valid HTTP(S) URL or uploaded image path.");
     }
+
     if (!["http:", "https:"].includes(parsed.protocol)) {
       throw new Error("Image URL must use HTTP or HTTPS.");
     }
   }
 
-  const images = Array.isArray(existing.images) ? existing.images : [];
   const result = {
     ...existing,
     id: existing.id || makeId(),
@@ -180,7 +186,7 @@ function cleanProduct(body, existing = {}) {
     color: text(body.color ?? existing.color, 80),
     description: text(body.description ?? existing.description, 5000),
     image: image || existing.image || "",
-    images,
+    images: Array.isArray(existing.images) ? existing.images : [],
     updatedAt: new Date().toISOString()
   };
 
@@ -205,41 +211,148 @@ function requireAdmin(req, res, next) {
       error: "Your admin session has expired. Please sign in again."
     });
   }
+
   next();
+}
+
+// ---------- PostgreSQL ----------
+
+// This table belongs to SAVITAR only.
+// It does not read, update, or delete Mercy's Kitchen tables.
+async function initialiseDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS savitar_products (
+      id TEXT PRIMARY KEY,
+      product JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Import JSON products only when the SAVITAR table is empty.
+  // Existing database products are never overwritten by this import.
+  const countResult = await pool.query(
+    "SELECT COUNT(*)::int AS count FROM savitar_products"
+  );
+
+  if (countResult.rows[0].count === 0) {
+    let legacy = readJson(PRODUCTS_FILE, null);
+
+    if (!Array.isArray(legacy)) {
+      legacy = readJson(LEGACY_PRODUCTS_FILE, []);
+    }
+
+    if (Array.isArray(legacy) && legacy.length > 0) {
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        for (const item of legacy) {
+          if (!item || typeof item !== "object") continue;
+
+          const product = {
+            ...item,
+            id: String(item.id || makeId())
+          };
+
+          await client.query(
+            `INSERT INTO savitar_products (id, product)
+             VALUES ($1, $2::jsonb)
+             ON CONFLICT (id) DO NOTHING`,
+            [product.id, JSON.stringify(product)]
+          );
+        }
+
+        await client.query("COMMIT");
+        console.log(`Imported ${legacy.length} legacy product records.`);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+  }
+
+  console.log("SAVITAR PostgreSQL database is ready.");
+}
+
+async function loadProducts() {
+  const result = await pool.query(
+    `SELECT product
+     FROM savitar_products
+     ORDER BY created_at DESC, id DESC`
+  );
+
+  return result.rows.map(row => row.product);
+}
+
+async function saveProduct(product) {
+  await pool.query(
+    `INSERT INTO savitar_products (id, product, created_at, updated_at)
+     VALUES ($1, $2::jsonb, NOW(), NOW())
+     ON CONFLICT (id)
+     DO UPDATE SET product = EXCLUDED.product, updated_at = NOW()`,
+    [String(product.id), JSON.stringify(product)]
+  );
+}
+
+async function findProduct(id) {
+  const result = await pool.query(
+    "SELECT product FROM savitar_products WHERE id = $1",
+    [String(id)]
+  );
+
+  return result.rows[0]?.product || null;
+}
+
+async function deleteProduct(id) {
+  const result = await pool.query(
+    "DELETE FROM savitar_products WHERE id = $1 RETURNING id",
+    [String(id)]
+  );
+
+  return result.rowCount > 0;
 }
 
 // ---------- Image uploads ----------
 
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => callback(null, UPLOAD_DIR),
+
   filename: (_req, file, callback) => {
     const extension = path.extname(file.originalname || "").toLowerCase();
-    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 
-    if (!allowedExtensions.includes(extension)) {
+    if (!allowed.includes(extension)) {
       return callback(new Error("Use a JPG, JPEG, PNG, WebP or GIF image."));
     }
 
-    callback(null, `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${extension}`);
+    callback(
+      null,
+      `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${extension}`
+    );
   }
 });
 
 const upload = multer({
   storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-    files: 1
-  },
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, callback) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    if (!allowedTypes.includes(file.mimetype)) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    if (!allowed.includes(file.mimetype)) {
       return callback(new Error("Only JPG, PNG, WebP and GIF images are allowed."));
     }
+
     callback(null, true);
   }
 });
 
 // ---------- Visitor statistics ----------
+// These statistics still use JSON files and are not guaranteed to survive
+// Render redeploys. Product data, however, is stored in PostgreSQL.
 
 function todayInLagos() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -252,11 +365,14 @@ function todayInLagos() {
 
 function readVisitorStats() {
   const data = readJson(VISITORS_FILE, {});
+
   return {
     totalVisits: Number(data.totalVisits || 0),
     daily: data.daily && typeof data.daily === "object" ? data.daily : {},
-    seenVisitors: data.seenVisitors && typeof data.seenVisitors === "object"
-      ? data.seenVisitors : {}
+    seenVisitors:
+      data.seenVisitors && typeof data.seenVisitors === "object"
+        ? data.seenVisitors
+        : {}
   };
 }
 
@@ -264,9 +380,6 @@ function recordHomepageVisit(req, res, next) {
   if (req.path !== "/" || req.method !== "GET") return next();
 
   try {
-    let visitorId = req.cookiesVisitorId;
-
-    // Use a basic cookie parser so no additional cookie-parser dependency is needed.
     const cookies = Object.fromEntries(
       String(req.headers.cookie || "")
         .split(";")
@@ -274,16 +387,21 @@ function recordHomepageVisit(req, res, next) {
         .filter(Boolean)
         .map(part => {
           const separator = part.indexOf("=");
+
           return separator < 0
             ? [part, ""]
-            : [part.slice(0, separator), decodeURIComponent(part.slice(separator + 1))];
+            : [
+                part.slice(0, separator),
+                decodeURIComponent(part.slice(separator + 1))
+              ];
         })
     );
 
-    visitorId = cookies.savitar_visitor;
+    let visitorId = cookies.savitar_visitor;
 
     if (!visitorId || !/^[a-f0-9-]{20,80}$/i.test(visitorId)) {
       visitorId = makeId();
+
       res.cookie("savitar_visitor", visitorId, {
         maxAge: 365 * 24 * 60 * 60 * 1000,
         httpOnly: true,
@@ -294,14 +412,15 @@ function recordHomepageVisit(req, res, next) {
 
     const stats = readVisitorStats();
     const day = todayInLagos();
+
     stats.daily[day] = Number(stats.daily[day] || 0) + 1;
     stats.totalVisits += 1;
-
-    // Unique visitor counts are approximate and kept for recent days only.
     stats.seenVisitors[`${day}:${visitorId}`] = true;
-    const recentKeys = Object.keys(stats.seenVisitors);
-    if (recentKeys.length > 20000) {
-      for (const key of recentKeys.slice(0, recentKeys.length - 20000)) {
+
+    const keys = Object.keys(stats.seenVisitors);
+
+    if (keys.length > 20000) {
+      for (const key of keys.slice(0, keys.length - 20000)) {
         delete stats.seenVisitors[key];
       }
     }
@@ -316,25 +435,43 @@ function recordHomepageVisit(req, res, next) {
 
 // ---------- Routes ----------
 
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "Savitar Global Enterprises", time: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    await pool.query("SELECT 1");
+
+    res.json({
+      ok: true,
+      service: "Savitar Global Enterprises",
+      database: "connected",
+      time: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Database health check failed:", error.message);
+    res.status(503).json({
+      ok: false,
+      error: "Database connection unavailable."
+    });
+  }
 });
 
-// Public catalogue endpoint.
-app.get("/api/products", (_req, res) => {
+// Public catalogue.
+app.get("/api/products", async (_req, res) => {
   try {
-    res.json(loadProducts());
+    res.json(await loadProducts());
   } catch (error) {
+    console.error("Loading products failed:", error.message);
     sendError(res, error, 500);
   }
 });
 
-// Check the current admin session.
+// Admin session status.
 app.get("/api/admin/session", (req, res) => {
-  res.json({ loggedIn: Boolean(req.session && req.session.isAdmin === true) });
+  res.json({
+    loggedIn: Boolean(req.session && req.session.isAdmin === true)
+  });
 });
 
-// Login.
+// Admin login.
 app.post("/api/admin/login", (req, res, next) => {
   const suppliedPassword = String(req.body?.password ?? "");
 
@@ -359,26 +496,29 @@ app.post("/api/admin/login", (req, res, next) => {
   });
 });
 
-// Logout.
+// Admin logout.
 app.post("/api/admin/logout", (req, res, next) => {
   if (!req.session) return res.json({ ok: true });
 
   req.session.destroy(error => {
     if (error) return next(error);
+
     res.clearCookie("savitar.sid", {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production"
     });
+
     res.json({ ok: true, message: "Logged out." });
   });
 });
 
-// Admin visitor stats.
+// Admin visitor statistics.
 app.get("/api/admin/stats", requireAdmin, (_req, res) => {
   try {
     const stats = readVisitorStats();
     const today = todayInLagos();
+
     res.json({
       ok: true,
       visitorsToday: Number(stats.daily[today] || 0),
@@ -389,108 +529,135 @@ app.get("/api/admin/stats", requireAdmin, (_req, res) => {
   }
 });
 
-// Upload an image.
-app.post("/api/admin/upload", requireAdmin, upload.single("image"), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ ok: false, error: "Choose an image to upload." });
-  }
+// Upload product image.
+app.post(
+  "/api/admin/upload",
+  requireAdmin,
+  upload.single("image"),
+  (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        ok: false,
+        error: "Choose an image to upload."
+      });
+    }
 
-  res.json({
-    ok: true,
-    image: `/uploads/${req.file.filename}`,
-    url: `/uploads/${req.file.filename}`,
-    path: `/uploads/${req.file.filename}`
-  });
-});
+    const imagePath = `/uploads/${req.file.filename}`;
+
+    res.json({
+      ok: true,
+      image: imagePath,
+      url: imagePath,
+      path: imagePath
+    });
+  }
+);
 
 // Add product.
-app.post("/api/admin/products", requireAdmin, (req, res) => {
+app.post("/api/admin/products", requireAdmin, async (req, res) => {
   try {
-    const products = loadProducts();
     const product = cleanProduct(req.body);
-    products.unshift(product);
-    saveProducts(products);
-    res.status(201).json({ ok: true, product, message: "Product added." });
+    await saveProduct(product);
+
+    res.status(201).json({
+      ok: true,
+      product,
+      message: "Product added."
+    });
   } catch (error) {
     sendError(res, error);
   }
 });
 
 // Update product.
-app.put("/api/admin/products/:id", requireAdmin, (req, res) => {
+app.put("/api/admin/products/:id", requireAdmin, async (req, res) => {
   try {
-    const products = loadProducts();
-    const index = products.findIndex(
-      item => String(item.id) === String(req.params.id)
-    );
+    const existing = await findProduct(req.params.id);
 
-    if (index < 0) {
-      return res.status(404).json({ ok: false, error: "Product not found." });
+    if (!existing) {
+      return res.status(404).json({
+        ok: false,
+        error: "Product not found."
+      });
     }
 
-    products[index] = cleanProduct(req.body, products[index]);
-    saveProducts(products);
-    res.json({ ok: true, product: products[index], message: "Product updated." });
+    const updated = cleanProduct(req.body, existing);
+    updated.id = existing.id;
+
+    await saveProduct(updated);
+
+    res.json({
+      ok: true,
+      product: updated,
+      message: "Product updated."
+    });
   } catch (error) {
     sendError(res, error);
   }
 });
 
-// Update stock only.
-app.patch("/api/admin/products/:id/stock", requireAdmin, (req, res) => {
+// Update stock.
+app.patch("/api/admin/products/:id/stock", requireAdmin, async (req, res) => {
   try {
-    const products = loadProducts();
-    const product = products.find(
-      item => String(item.id) === String(req.params.id)
-    );
+    const product = await findProduct(req.params.id);
 
     if (!product) {
-      return res.status(404).json({ ok: false, error: "Product not found." });
+      return res.status(404).json({
+        ok: false,
+        error: "Product not found."
+      });
     }
 
     product.stock = wholeNumber(req.body?.stock, "Stock");
     product.updatedAt = new Date().toISOString();
-    saveProducts(products);
 
-    res.json({ ok: true, product, message: "Stock updated." });
+    await saveProduct(product);
+
+    res.json({
+      ok: true,
+      product,
+      message: "Stock updated."
+    });
   } catch (error) {
     sendError(res, error);
   }
 });
 
 // Delete product.
-app.delete("/api/admin/products/:id", requireAdmin, (req, res) => {
+app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
   try {
-    const products = loadProducts();
-    const index = products.findIndex(
-      item => String(item.id) === String(req.params.id)
-    );
+    const deleted = await deleteProduct(req.params.id);
 
-    if (index < 0) {
-      return res.status(404).json({ ok: false, error: "Product not found." });
+    if (!deleted) {
+      return res.status(404).json({
+        ok: false,
+        error: "Product not found."
+      });
     }
 
-    const [removed] = products.splice(index, 1);
-    saveProducts(products);
-    res.json({ ok: true, deleted: removed.id, message: "Product deleted." });
+    res.json({
+      ok: true,
+      deleted: String(req.params.id),
+      message: "Product deleted."
+    });
   } catch (error) {
     sendError(res, error, 500);
   }
 });
 
-// Serve public files and the storefront.
+// Count visits and serve public files.
 app.use(recordHomepageVisit);
+
 app.use(express.static(PUBLIC_DIR, {
   extensions: ["html"],
   index: "index.html"
 }));
 
-// Friendly admin URL.
 app.get("/admin", (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "admin.html"));
 });
 
-// Upload middleware and JSON errors.
+// Error handler.
 app.use((error, _req, res, _next) => {
   console.error("Request error:", error.message);
 
@@ -498,6 +665,7 @@ app.use((error, _req, res, _next) => {
     const message = error.code === "LIMIT_FILE_SIZE"
       ? "Image is too large. Maximum size is 5 MB."
       : error.message;
+
     return res.status(400).json({ ok: false, error: message });
   }
 
@@ -505,11 +673,27 @@ app.use((error, _req, res, _next) => {
     return res.status(400).json({ ok: false, error: error.message });
   }
 
-  res.status(500).json({ ok: false, error: "A server error occurred." });
+  res.status(500).json({
+    ok: false,
+    error: "A server error occurred."
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Savitar Global Enterprises running on port ${PORT}`);
-  console.log(`Admin page: /admin.html`);
-  console.log(`Health check: /api/health`);
-});
+// Start only after the database connection and table are ready.
+async function startServer() {
+  try {
+    await pool.query("SELECT 1");
+    await initialiseDatabase();
+
+    app.listen(PORT, () => {
+      console.log(`Savitar Global Enterprises running on port ${PORT}`);
+      console.log("Admin page: /admin");
+      console.log("Health check: /api/health");
+    });
+  } catch (error) {
+    console.error("Could not start SAVITAR:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();
